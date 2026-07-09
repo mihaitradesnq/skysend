@@ -37,6 +37,27 @@ const FALLBACK_CITIES: readonly ServiceCity[] = [
   { id: "bucuresti", label: "București", hubStatus: "unavailable" },
 ];
 
+const SELECTED_SERVICE_CITY_STORAGE_KEY = "skysend:selected-service-city";
+const SERVICE_CITY_CHANGED_EVENT = "skysend:service-city-changed";
+
+function resolveServiceCity(
+  cities: readonly ServiceCity[],
+  cityId: ServiceCityId | null,
+) {
+  return cities.find((city) => city.id === cityId) ?? FALLBACK_PITESTI;
+}
+
+function readStoredServiceCityId(): ServiceCityId | null {
+  if (typeof window === "undefined") {
+    return null;
+  }
+
+  const storedCityId = window.localStorage.getItem(SELECTED_SERVICE_CITY_STORAGE_KEY);
+  return storedCityId === "pitesti" || storedCityId === "bucuresti"
+    ? storedCityId
+    : null;
+}
+
 export function useServiceCity(): {
   selectedCity: ServiceCity;
   setSelectedCity: (cityId: ServiceCityId) => void;
@@ -56,8 +77,9 @@ export function useServiceCity(): {
     return new OperationalSettingsRepository(supabase);
   }, [profileId, getToken]);
 
-  const [selectedCity, setSelectedCityState] =
-    useState<ServiceCity>(FALLBACK_PITESTI);
+  const [selectedCity, setSelectedCityState] = useState<ServiceCity>(() =>
+    resolveServiceCity(FALLBACK_CITIES, readStoredServiceCityId()),
+  );
   const [dynamicCities, setDynamicCities] =
     useState<readonly ServiceCity[]>(FALLBACK_CITIES);
 
@@ -89,11 +111,15 @@ export function useServiceCity(): {
           hubStatus,
         };
 
-        setSelectedCityState(pitesti);
-        setDynamicCities([
+        const nextCities = [
           pitesti,
           { id: "bucuresti", label: "București", hubStatus: "unavailable" },
-        ]);
+        ] as const;
+
+        setDynamicCities(nextCities);
+        setSelectedCityState((currentCity) =>
+          resolveServiceCity(nextCities, readStoredServiceCityId() ?? currentCity.id),
+        );
       })
       .catch((err) => {
         if (!cancelled) {
@@ -106,9 +132,27 @@ export function useServiceCity(): {
     };
   }, [repo]);
 
-  const setSelectedCity = useCallback((_cityId: ServiceCityId) => {
-    // intentional no-op
-  }, []);
+  const setSelectedCity = useCallback((cityId: ServiceCityId) => {
+    window.localStorage.setItem(SELECTED_SERVICE_CITY_STORAGE_KEY, cityId);
+    setSelectedCityState(resolveServiceCity(dynamicCities, cityId));
+    window.dispatchEvent(
+      new CustomEvent(SERVICE_CITY_CHANGED_EVENT, { detail: { cityId } }),
+    );
+  }, [dynamicCities]);
+
+  useEffect(() => {
+    function syncSelectedCity() {
+      setSelectedCityState(resolveServiceCity(dynamicCities, readStoredServiceCityId()));
+    }
+
+    window.addEventListener(SERVICE_CITY_CHANGED_EVENT, syncSelectedCity);
+    window.addEventListener("storage", syncSelectedCity);
+
+    return () => {
+      window.removeEventListener(SERVICE_CITY_CHANGED_EVENT, syncSelectedCity);
+      window.removeEventListener("storage", syncSelectedCity);
+    };
+  }, [dynamicCities]);
 
   return {
     selectedCity,

@@ -791,7 +791,17 @@ export function CreateDeliveryShell() {
   const platformGateMessage = getPlatformGateMessage(
     operationalSettings.platformStatus,
   );
-  const isHubAvailable = isSelectedCityActive && !platformGateMessage;
+  const unavailableCityMessage =
+    !isSelectedCityActive && selectedCity.id === "bucuresti"
+      ? "SkySend se pregătește pentru București. Extindem aria de acoperire și revenim curând cu livrări active în oraș."
+      : null;
+  const inactiveHubMessage =
+    !isSelectedCityActive && selectedCity.id === "pitesti"
+      ? "Aplicația este momentan în mentenanță pentru zona Pitești. Revenim cât mai curând. Îți mulțumim pentru răbdare."
+      : null;
+  const deliveryGateMessage =
+    platformGateMessage ?? unavailableCityMessage ?? inactiveHubMessage;
+  const isHubAvailable = !deliveryGateMessage;
   const serviceAreaSettingsKey = [
     operationalSettings.serviceRadiusKm,
     operationalSettings.platformStatus,
@@ -1128,8 +1138,8 @@ export function CreateDeliveryShell() {
     selectedCandidatePoints.pickup,
   ]);
   const canContinue = useMemo(() => {
-    return routeReady && parcelReady && optionsReady && !platformGateMessage;
-  }, [optionsReady, parcelReady, platformGateMessage, routeReady]);
+    return routeReady && parcelReady && optionsReady && !deliveryGateMessage;
+  }, [deliveryGateMessage, optionsReady, parcelReady, routeReady]);
 
   const pickupSummary = pickupValidation.geocodedAddress?.formattedAddress
     ? pickupValidation.geocodedAddress.formattedAddress
@@ -1827,8 +1837,8 @@ export function CreateDeliveryShell() {
     setReviewGateMessage(null);
 
     if (flowStep === "route") {
-      if (platformGateMessage) {
-        setReviewGateMessage(platformGateMessage);
+      if (deliveryGateMessage) {
+        setReviewGateMessage(deliveryGateMessage);
         return;
       }
 
@@ -1856,8 +1866,8 @@ export function CreateDeliveryShell() {
     }
 
     if (flowStep === "options") {
-      if (platformGateMessage) {
-        setReviewGateMessage(platformGateMessage);
+      if (deliveryGateMessage) {
+        setReviewGateMessage(deliveryGateMessage);
         return;
       }
 
@@ -2338,19 +2348,19 @@ export function CreateDeliveryShell() {
   );
 
   const routeActions = (
-    <div className="sticky bottom-0 z-10 mt-3 grid gap-2 border-t border-border/70 bg-background/96 px-3.5 pt-3 pb-[calc(0.85rem_+_env(safe-area-inset-bottom))] backdrop-blur-md sm:static sm:flex sm:flex-row sm:items-center sm:justify-between sm:rounded-none sm:border-0 sm:bg-transparent sm:px-0 sm:pb-0 sm:backdrop-blur-none lg:mt-5 lg:px-6 lg:pb-6">
+    <div className="sticky bottom-0 z-10 mt-3 grid gap-2 border-t border-border/70 bg-background px-3.5 pt-3 pb-[calc(0.85rem_+_env(safe-area-inset-bottom))] shadow-[0_-18px_34px_-26px_rgba(0,0,0,0.85)] sm:static sm:flex sm:flex-row sm:items-center sm:justify-between sm:rounded-none sm:border-0 sm:bg-background sm:px-0 sm:pb-0 lg:mt-5 lg:px-6 lg:pb-6">
       <p className="order-1 text-center text-xs leading-5 text-muted-foreground sm:order-none sm:text-left lg:hidden">
-        {platformGateMessage ?? routeDisabledReason}
+        {deliveryGateMessage ?? routeDisabledReason}
       </p>
       <AppButton
         type="button"
         size="lg"
         className="w-full sm:ml-auto sm:w-fit lg:min-w-36"
-        disabled={!routeReady || Boolean(platformGateMessage)}
+        disabled={!routeReady || Boolean(deliveryGateMessage)}
         onClick={handleStepContinue}
       >
         <span className="lg:hidden">
-          {routeReady && !platformGateMessage ? "Analizează coletul" : "Alege punctele"}
+          {routeReady && !deliveryGateMessage ? "Analizează coletul" : "Alege punctele"}
         </span>
         <span className="hidden lg:inline">Continuă</span>
         <ArrowRight className="size-4" />
@@ -2359,12 +2369,12 @@ export function CreateDeliveryShell() {
   );
 
   const parcelActions = (
-    <div className="fixed inset-x-0 bottom-[var(--bottom-nav-height)] z-40 flex flex-row items-center gap-3 px-4 pb-2 pt-2 sm:sticky sm:bottom-0 sm:z-20 sm:flex-row sm:items-center sm:justify-between sm:rounded-[calc(var(--radius)+0.5rem)] sm:border sm:border-border/80 sm:bg-secondary/30 sm:px-5 sm:pb-4 sm:pt-4">
+    <div className="fixed inset-x-0 bottom-[var(--bottom-nav-height)] z-40 flex flex-row items-center gap-3 bg-background px-4 pb-2 pt-2 shadow-[0_-18px_34px_-26px_rgba(0,0,0,0.9)] sm:sticky sm:bottom-0 sm:z-20 sm:flex-row sm:items-center sm:justify-between sm:rounded-[calc(var(--radius)+0.5rem)] sm:border sm:border-border/80 sm:bg-background sm:px-5 sm:pb-4 sm:pt-4">
       <AppButton
         type="button"
         variant="outline"
         size="sm"
-        className="h-10 shrink-0 rounded-2xl bg-secondary/95 px-5 sm:h-11 sm:w-fit"
+        className="h-10 shrink-0 rounded-2xl bg-card px-5 sm:h-11 sm:w-fit"
         onClick={handleStepBack}
       >
         Înapoi
@@ -2372,7 +2382,7 @@ export function CreateDeliveryShell() {
       <AppButton
         type="button"
         size="sm"
-        className="h-10 flex-[1.35] rounded-2xl px-6 sm:h-11 sm:w-fit sm:flex-none"
+        className="h-10 flex-[1.35] rounded-2xl px-6 shadow-[var(--elevation-soft)] sm:h-11 sm:w-fit sm:flex-none"
         disabled={!parcelReady}
         onClick={handleStepContinue}
       >
@@ -2383,12 +2393,12 @@ export function CreateDeliveryShell() {
   );
 
   const optionsActions = (
-    <div className="fixed inset-x-0 bottom-[var(--bottom-nav-height)] z-40 flex flex-row items-center gap-3 px-4 pb-2 pt-2 sm:sticky sm:bottom-0 sm:z-20 sm:flex-row sm:items-center sm:justify-between sm:rounded-[calc(var(--radius)+0.5rem)] sm:border sm:border-border/80 sm:bg-secondary/30 sm:px-5 sm:pb-4 sm:pt-4">
+    <div className="fixed inset-x-0 bottom-[var(--bottom-nav-height)] z-40 flex flex-row items-center gap-3 bg-background px-4 pb-2 pt-2 shadow-[0_-18px_34px_-26px_rgba(0,0,0,0.9)] sm:sticky sm:bottom-0 sm:z-20 sm:flex-row sm:items-center sm:justify-between sm:rounded-[calc(var(--radius)+0.5rem)] sm:border sm:border-border/80 sm:bg-background sm:px-5 sm:pb-4 sm:pt-4">
       <AppButton
         type="button"
         variant="outline"
         size="sm"
-        className="h-10 shrink-0 rounded-2xl bg-secondary/95 px-5 sm:h-11 sm:w-fit"
+        className="h-10 shrink-0 rounded-2xl bg-card px-5 sm:h-11 sm:w-fit"
         onClick={handleStepBack}
       >
         Înapoi
@@ -2396,7 +2406,7 @@ export function CreateDeliveryShell() {
       <AppButton
         type="button"
         size="sm"
-        className="h-10 flex-[1.35] rounded-2xl px-6 sm:h-11 sm:w-fit sm:flex-none"
+        className="h-10 flex-[1.35] rounded-2xl px-6 shadow-[var(--elevation-soft)] sm:h-11 sm:w-fit sm:flex-none"
         disabled={!canContinue}
         onClick={handleStepContinue}
       >
@@ -2749,7 +2759,7 @@ export function CreateDeliveryShell() {
           )
         ) : null}
 
-        {flowStep !== "route" && platformGateMessage ? (
+        {flowStep !== "route" && deliveryGateMessage ? (
           <div className="rounded-[calc(var(--radius)+0.5rem)] border border-warning/35 bg-warning/10 p-4">
             <div className="flex items-start gap-3">
               <CircleAlert className="mt-0.5 size-4 text-warning" />
@@ -2758,7 +2768,7 @@ export function CreateDeliveryShell() {
                   Platforma nu accepta livrari noi
                 </p>
                 <p className="text-sm leading-6 text-muted-foreground">
-                  {platformGateMessage}
+                  {deliveryGateMessage}
                 </p>
               </div>
             </div>
@@ -2810,7 +2820,7 @@ export function CreateDeliveryShell() {
                   savedPlaces={savedPlaces}
                   isLocked={isRouteSelectionLocked}
                   routeReady={routeReady}
-                  platformGateMessage={platformGateMessage}
+                  platformGateMessage={deliveryGateMessage}
                   onAddressChange={handleAddressChange}
                   onAddressSelect={handleAddressSelect}
                   onSavedPlaceSelect={handleSavedPlaceSelect}
@@ -2821,7 +2831,8 @@ export function CreateDeliveryShell() {
                 <div className="relative h-dvh min-h-svh overflow-hidden bg-background">
                   <UnavailableCityMapState
                     cityLabel={selectedCity.label}
-                    reason={platformGateMessage}
+                    reason={deliveryGateMessage}
+                    variant={selectedCity.id === "bucuresti" ? "coming-soon" : "maintenance"}
                   />
                 </div>
               )
@@ -2848,7 +2859,8 @@ export function CreateDeliveryShell() {
                 ) : (
                   <UnavailableCityMapState
                     cityLabel={selectedCity.label}
-                    reason={platformGateMessage}
+                    reason={deliveryGateMessage}
+                    variant={selectedCity.id === "bucuresti" ? "coming-soon" : "maintenance"}
                   />
                 )}
 
@@ -3326,29 +3338,45 @@ export function CreateDeliveryShell() {
 function UnavailableCityMapState({
   cityLabel,
   reason,
+  variant,
 }: {
   cityLabel: string;
   reason?: string | null;
+  variant: "coming-soon" | "maintenance";
 }) {
-  const isMaintenance = Boolean(reason);
+  const isMaintenance = variant === "maintenance";
 
   return (
-    <div className="absolute inset-0 grid place-items-center bg-[linear-gradient(135deg,rgba(4,10,15,0.96),rgba(8,14,20,0.99))] px-4">
-      <div className="pointer-events-auto max-w-xl rounded-[calc(var(--radius)+0.75rem)] border border-border/80 bg-background/88 p-6 text-center shadow-[var(--elevation-panel)] backdrop-blur-md sm:p-8">
-        <span className="mx-auto flex size-12 items-center justify-center rounded-2xl border border-primary/30 bg-primary/10 text-primary">
-          <MapPinOff className="size-5" />
+    <div className="absolute inset-0 grid place-items-center bg-[radial-gradient(circle_at_top,rgba(20,184,166,0.16),transparent_34%),linear-gradient(135deg,rgba(4,10,15,0.97),rgba(8,14,20,0.99))] px-4">
+      <div className="pointer-events-auto w-full max-w-xl rounded-[calc(var(--radius)+0.75rem)] border border-border/80 bg-background/92 p-6 text-center shadow-[var(--elevation-panel)] sm:p-8">
+        <span
+          className={cn(
+            "mx-auto flex size-16 items-center justify-center rounded-full border text-primary",
+            isMaintenance
+              ? "border-warning/30 bg-warning/10 text-warning"
+              : "border-primary/30 bg-primary/10",
+          )}
+        >
+          {isMaintenance ? (
+            <CircleAlert className="size-7" />
+          ) : (
+            <MapPinOff className="size-7" />
+          )}
         </span>
         <p className="mt-5 text-xs font-semibold uppercase tracking-[0.16em] text-primary">
-          Indisponibil
+          {isMaintenance ? "Mentenanță" : "Coming soon"}
         </p>
         <h2 className="mt-2 font-heading text-3xl tracking-tight text-foreground">
           {isMaintenance
-            ? "Hub-ul este temporar inactiv"
-            : `Momentan nu suntem disponibili în ${cityLabel}`}
+            ? "Lucrăm la revenirea aplicației"
+            : `${cityLabel} este aproape gata`}
         </h2>
         <p className="mt-3 text-sm leading-6 text-muted-foreground">
           {reason ??
-            "Acest oraș este afișat doar ca preview. Pentru harta activă și crearea livrărilor, selectează un oraș cu hub activ."}
+            "Ne extindem aria de acoperire și vom activa livrările în acest oraș în curând."}
+        </p>
+        <p className="mt-5 text-xs font-medium uppercase tracking-[0.14em] text-muted-foreground">
+          Comenzile sunt oprite temporar
         </p>
       </div>
     </div>

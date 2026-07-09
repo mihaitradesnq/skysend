@@ -473,7 +473,7 @@
   }
 
   .map-surface--premium .maplibregl-canvas {
-    filter: saturate(0.88) contrast(1.18) brightness(1.82);
+    filter: saturate(0.72) contrast(1.08) brightness(2.04) hue-rotate(-8deg);
   }
 
   .map-surface:not(.map-surface--premium) .maplibregl-canvas {

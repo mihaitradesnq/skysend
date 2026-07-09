@@ -39,7 +39,7 @@ export function DashboardTopbar({
   const clientControlClassName = cn(
     "inline-flex min-h-11 max-w-full items-center gap-2 rounded-full border px-3 py-2 text-sm leading-tight backdrop-blur-md sm:px-3.5",
     floating
-      ? "pointer-events-auto border-white/12 bg-background/10 text-foreground shadow-[0_12px_32px_-18px_rgba(0,0,0,0.95)]"
+      ? "pointer-events-auto border-white/12 bg-background/95 text-foreground shadow-[0_12px_32px_-18px_rgba(0,0,0,0.95)]"
       : "border-border/70 bg-card/45 text-foreground shadow-[var(--elevation-soft)]",
   );
   const mutedClientControlClassName = cn(
@@ -49,9 +49,15 @@ export function DashboardTopbar({
   const iconControlClassName = cn(
     "relative inline-flex size-11 items-center justify-center rounded-full border text-foreground backdrop-blur-md transition-colors focus-visible:ring-4 focus-visible:ring-ring",
     floating
-      ? "pointer-events-auto border-white/12 bg-background/10 shadow-[0_12px_32px_-18px_rgba(0,0,0,0.95)] hover:border-primary/35 hover:bg-background/18"
+      ? "pointer-events-auto border-white/12 bg-background/95 shadow-[0_12px_32px_-18px_rgba(0,0,0,0.95)] hover:border-primary/35 hover:bg-background"
       : "border-border/70 bg-card/45 shadow-[var(--elevation-soft)] hover:border-primary/45 hover:bg-secondary/70",
   );
+  const notificationBadge =
+    unreadCount > 0 ? (
+      <span className="absolute -right-1 -top-1 min-w-4 rounded-full bg-primary px-1 text-center text-[0.65rem] font-semibold leading-4 text-primary-foreground">
+        {unreadCount > 9 ? "9+" : unreadCount}
+      </span>
+    ) : null;
 
   useEffect(() => {
     function refreshOperationalSettings() {
@@ -170,13 +176,13 @@ export function DashboardTopbar({
           {isClientWorkspace ? (
             <>
               {shouldShowCitySelector ? (
-                <div className="relative cd-chrome">
+                <div className="relative z-50 cd-chrome">
                 <button
                   type="button"
                   onClick={() => setIsCitySelectorOpen((value) => !value)}
                   className={cn(
                     clientControlClassName,
-                    "transition-colors hover:border-primary/35 hover:bg-background/18 focus-visible:ring-4 focus-visible:ring-ring",
+                    "min-w-[9.25rem] justify-between transition-colors hover:border-primary/35 hover:bg-background focus-visible:ring-4 focus-visible:ring-ring",
                   )}
                   aria-expanded={isCitySelectorOpen}
                   aria-haspopup="listbox"
@@ -197,7 +203,7 @@ export function DashboardTopbar({
                 {isCitySelectorOpen ? (
                   <div
                     className={cn(
-                      "absolute right-0 top-[calc(100%_+_0.5rem)] z-50 min-w-48 overflow-hidden rounded-2xl border border-border/80 bg-background/96 p-1.5 shadow-[var(--elevation-panel)] backdrop-blur-md",
+                      "absolute left-0 top-[calc(100%_+_0.5rem)] z-50 w-[min(17rem,calc(100vw-1.5rem))] overflow-hidden rounded-2xl border border-border/80 bg-background/95 p-1.5 shadow-[var(--elevation-panel)] backdrop-blur-md sm:left-auto sm:right-0 sm:w-auto sm:min-w-48",
                       floating ? "pointer-events-auto" : undefined,
                     )}
                     role="listbox"
@@ -227,7 +233,7 @@ export function DashboardTopbar({
                           <span className="flex items-center gap-2">
                             {isUnavailable ? (
                               <span className="text-[0.68rem] font-semibold uppercase text-red-300">
-                                Unavailable
+                                Indisponibil
                               </span>
                             ) : null}
                             <span
@@ -272,11 +278,18 @@ export function DashboardTopbar({
                 className={cn(iconControlClassName, "hidden md:inline-flex")}
               >
                 <Bell className="size-4" />
-                {unreadCount > 0 ? (
-                  <span className="absolute -right-1 -top-1 min-w-4 rounded-full bg-primary px-1 text-center text-[0.65rem] font-semibold leading-4 text-primary-foreground">
-                    {unreadCount > 9 ? "9+" : unreadCount}
-                  </span>
-                ) : null}
+                {notificationBadge}
+              </Link>
+              <Link
+                href="/client/notifications"
+                aria-label="Notificări"
+                className={cn(
+                  iconControlClassName,
+                  "fixed right-3 top-[calc(0.55rem_+_env(safe-area-inset-top))] z-[60] md:hidden",
+                )}
+              >
+                <Bell className="size-4" />
+                {notificationBadge}
               </Link>
             </>
           ) : (

@@ -34,12 +34,12 @@ function isFutureScheduledOrder(order: ClientOrderSummary) {
 function getScheduledDateLabel(order: ClientOrderSummary) {
   return order.scheduledFor
     ? formatDateTime(order.scheduledFor)
-    : "Data nu este setata";
+    : "Data nu este setată";
 }
 
 function getStatusLabel(order: ClientOrderSummary) {
   if (isFutureScheduledOrder(order)) {
-    return "Nelivrata inca";
+    return "Nelivrată încă";
   }
 
   if (order.statusFilter === "active") {
@@ -48,13 +48,13 @@ function getStatusLabel(order: ClientOrderSummary) {
 
   switch (order.statusFilter) {
     case "completed":
-      return "Finalizata";
+      return "Finalizată";
     case "failed":
-      return "Esuata";
+      return "Eșuată";
     case "scheduled":
-      return "Programata";
+      return "Programată";
     case "cancelled":
-      return "Anulata";
+      return "Anulată";
     default:
       return orderStatusLabels[order.status];
   }
@@ -107,10 +107,10 @@ function ScheduledOrdersEmptyState() {
         <Clock3 className="size-10" />
       </div>
       <h3 className="font-heading text-xl tracking-tight text-foreground">
-        Nu ai deocamdata nicio livrare programata
+        Nu ai deocamdată nicio livrare programată
       </h3>
       <p className="mt-2 max-w-sm text-sm leading-6 text-muted-foreground">
-        Cand alegi optiunea programata la o livrare noua, comanda va aparea aici cu data si ora setate.
+        Când alegi opțiunea programată la o livrare nouă, comanda va apărea aici cu data și ora setate.
       </p>
     </div>
   );
@@ -126,10 +126,10 @@ function CompletedOrdersEmptyState() {
         <PackageX className="size-10" />
       </div>
       <h3 className="font-heading text-xl tracking-tight text-foreground">
-        Ne pare rau, dar nu ai comenzi inregistrate
+        Ne pare rău, dar nu ai comenzi înregistrate
       </h3>
       <p className="mt-2 max-w-sm text-sm leading-6 text-muted-foreground">
-        Cand creezi o livrare noua, comanda salvata in baza de date va aparea aici.
+        Când creezi o livrare nouă, comanda salvată în baza de date va apărea aici.
       </p>
     </div>
   );
@@ -177,13 +177,11 @@ function OrderListSection({
               <thead className="bg-secondary/45 text-left">
                 <tr className="text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">
                   <th className="px-4 py-4">Comanda</th>
-                  <th className="px-4 py-4">Traseu</th>
+                  {!scheduledSection ? <th className="px-4 py-4">Traseu</th> : null}
                   <th className="px-4 py-4">Status</th>
-                  <th className="px-4 py-4">Plata</th>
-                  <th className="px-4 py-4">Urgenta</th>
-                  <th className="px-4 py-4">
-                    {scheduledSection ? "Programata" : "Creata"}
-                  </th>
+                  {!scheduledSection ? <th className="px-4 py-4">Plată</th> : null}
+                  <th className="px-4 py-4">Tip livrare</th>
+                  {!scheduledSection ? <th className="px-4 py-4">Creată</th> : null}
                   <th className="px-4 py-4">Cost estimat</th>
                   <th className="px-4 py-4 text-right">Detalii</th>
                 </tr>
@@ -204,32 +202,38 @@ function OrderListSection({
                           <p className="font-medium text-foreground">{order.id}</p>
                           <p className="text-sm text-muted-foreground">
                             {scheduledSection
-                              ? `Programata pentru ${dateLabel}`
-                              : (order.operationalStateLabel ?? "Comanda din istoric")}
+                              ? `Programată pentru ${dateLabel}`
+                              : (order.operationalStateLabel ?? "Comandă din istoric")}
                           </p>
                         </div>
                       </td>
-                      <td className="px-4 py-4 align-top">
-                        <div className="space-y-1 text-sm">
-                          <p className="text-foreground">{order.pickupArea}</p>
-                          <p className="text-muted-foreground">catre {order.dropoffArea}</p>
-                        </div>
-                      </td>
+                      {!scheduledSection ? (
+                        <td className="px-4 py-4 align-top">
+                          <div className="space-y-1 text-sm">
+                            <p className="text-foreground">{order.pickupArea}</p>
+                            <p className="text-muted-foreground">către {order.dropoffArea}</p>
+                          </div>
+                        </td>
+                      ) : null}
                       <td className="px-4 py-4 align-top">
                         <StatusBadge label={statusLabel} tone={getStatusTone(order)} />
                       </td>
-                      <td className="px-4 py-4 align-top">
-                        <StatusBadge
-                          label={order.payment.statusLabel}
-                          tone={getPaymentTone(order.payment.status)}
-                        />
-                      </td>
+                      {!scheduledSection ? (
+                        <td className="px-4 py-4 align-top">
+                          <StatusBadge
+                            label={order.payment.statusLabel}
+                            tone={getPaymentTone(order.payment.status)}
+                          />
+                        </td>
+                      ) : null}
                       <td className="px-4 py-4 align-top text-sm text-muted-foreground">
                         {formatDeliveryUrgency(order.urgency)}
                       </td>
-                      <td className="px-4 py-4 align-top text-sm text-muted-foreground">
-                        {dateLabel}
-                      </td>
+                      {!scheduledSection ? (
+                        <td className="px-4 py-4 align-top text-sm text-muted-foreground">
+                          {dateLabel}
+                        </td>
+                      ) : null}
                       <td className="px-4 py-4 align-top text-sm font-medium text-foreground">
                         {order.estimatedCostLabel}
                       </td>
@@ -259,34 +263,38 @@ function OrderListSection({
                       <div className="min-w-0 space-y-1">
                         <p className="break-all font-medium text-foreground">{order.id}</p>
                         <p className="text-sm text-muted-foreground">
-                          {scheduledSection ? `Programata pentru ${dateLabel}` : dateLabel}
+                          {scheduledSection ? `Programată pentru ${dateLabel}` : dateLabel}
                         </p>
                       </div>
                       <StatusBadge label={statusLabel} tone={getStatusTone(order)} />
                     </div>
 
-                    <div className="flex flex-wrap gap-2">
-                      <StatusBadge
-                        label={`Plata ${order.payment.statusLabel.toLocaleLowerCase("ro-RO")}`}
-                        tone={getPaymentTone(order.payment.status)}
-                      />
-                      <StatusBadge label={order.payment.methodDetail} tone="neutral" />
-                    </div>
+                    {!scheduledSection ? (
+                      <div className="flex flex-wrap gap-2">
+                        <StatusBadge
+                          label={`Plată ${order.payment.statusLabel.toLocaleLowerCase("ro-RO")}`}
+                          tone={getPaymentTone(order.payment.status)}
+                        />
+                        <StatusBadge label={order.payment.methodDetail} tone="neutral" />
+                      </div>
+                    ) : null}
 
-                    <div className="grid gap-3 text-sm">
-                      <div className="rounded-[calc(var(--radius)+0.25rem)] border border-border/80 bg-secondary/45 px-4 py-3">
-                        <p className="text-muted-foreground">Zona ridicare</p>
-                        <p className="mt-1 font-medium text-foreground">{order.pickupArea}</p>
+                    {!scheduledSection ? (
+                      <div className="grid gap-3 text-sm">
+                        <div className="rounded-[calc(var(--radius)+0.25rem)] border border-border/80 bg-secondary/45 px-4 py-3">
+                          <p className="text-muted-foreground">Zona ridicare</p>
+                          <p className="mt-1 font-medium text-foreground">{order.pickupArea}</p>
+                        </div>
+                        <div className="rounded-[calc(var(--radius)+0.25rem)] border border-border/80 bg-secondary/45 px-4 py-3">
+                          <p className="text-muted-foreground">Zona livrare</p>
+                          <p className="mt-1 font-medium text-foreground">{order.dropoffArea}</p>
+                        </div>
                       </div>
-                      <div className="rounded-[calc(var(--radius)+0.25rem)] border border-border/80 bg-secondary/45 px-4 py-3">
-                        <p className="text-muted-foreground">Zona livrare</p>
-                        <p className="mt-1 font-medium text-foreground">{order.dropoffArea}</p>
-                      </div>
-                    </div>
+                    ) : null}
 
                     <div className="grid gap-3 sm:grid-cols-2">
                       <div className="rounded-[calc(var(--radius)+0.25rem)] border border-border/80 bg-background px-4 py-3">
-                        <p className="text-sm text-muted-foreground">Urgenta</p>
+                        <p className="text-sm text-muted-foreground">Tip livrare</p>
                         <p className="mt-1 text-sm font-medium text-foreground">
                           {formatDeliveryUrgency(order.urgency)}
                         </p>
@@ -297,12 +305,6 @@ function OrderListSection({
                           {order.estimatedCostLabel}
                         </p>
                       </div>
-                      {scheduledSection ? (
-                        <div className="rounded-[calc(var(--radius)+0.25rem)] border border-border/80 bg-background px-4 py-3 sm:col-span-2">
-                          <p className="text-sm text-muted-foreground">Data si ora programata</p>
-                          <p className="mt-1 text-sm font-medium text-foreground">{dateLabel}</p>
-                        </div>
-                      ) : null}
                     </div>
 
                     <div className="grid gap-2 sm:grid-cols-2">
@@ -354,7 +356,7 @@ export function ClientOrdersView({ orders }: { orders: ClientOrderSummary[] }) {
     <section className="app-container flex flex-col gap-6">
       <PageHeader
         title="Comenzi"
-        description="Istoricul comenzilor tale si livrarile programate."
+        description="Istoricul comenzilor tale și livrările programate."
       />
 
       <div className="grid gap-2 rounded-[calc(var(--radius)+0.5rem)] border border-border/80 bg-card p-1.5 sm:inline-grid sm:w-fit sm:grid-cols-2">
@@ -400,8 +402,8 @@ export function ClientOrdersView({ orders }: { orders: ClientOrderSummary[] }) {
         }
         description={
           activeTab === "scheduled"
-            ? "Comenzi setate pentru o data si o ora viitoare."
-            : "Lista comenzilor salvate in baza de date."
+            ? "Comenzi setate pentru o dată și o oră viitoare."
+            : "Lista comenzilor salvate în baza de date."
         }
         orders={activeOrders}
         scheduledSection={activeTab === "scheduled"}

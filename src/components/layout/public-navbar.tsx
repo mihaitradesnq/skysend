@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { AnimatePresence, motion } from "motion/react";
+import { AnimatePresence, m } from "motion/react";
 import { ClerkAuthControls } from "@/components/auth/clerk-auth-controls";
 import { publicNavigation } from "@/constants/public-navigation";
 import { BrandMark } from "@/components/shared/brand-mark";
@@ -201,7 +201,7 @@ export function PublicNavbar({ overlay = false }: PublicNavbarProps) {
       {/* Mobile menu — slide-down animation */}
       <AnimatePresence>
         {isOpen && (
-          <motion.div
+          <m.div
             key="mobile-nav"
             id="public-mobile-nav"
             initial={{ opacity: 0, scale: 0.96, y: -8 }}
@@ -251,7 +251,7 @@ export function PublicNavbar({ overlay = false }: PublicNavbarProps) {
                 </Button>
               </div>
             </div>
-          </motion.div>
+          </m.div>
         )}
       </AnimatePresence>
     </header>
