@@ -16,6 +16,7 @@ import type {
   ParcelEstimatedWeightRange,
   ParcelHandlingNote,
   ParcelIntelligenceSnapshot,
+  ParcelLookupTrace,
   ParcelNaturalDescription,
   ParcelPackagingInference,
   ParcelRiskFlag,
@@ -73,6 +74,7 @@ export type ParcelEstimatorResponse = {
   corrections?: ParcelEstimatorCorrection[];
   intelligence?: ParcelIntelligenceSnapshot | null;
   confirmedProfile?: ConfirmedParcelProfile | null;
+  lookupTrace?: ParcelLookupTrace;
   safetyNote: "Greutatea finală va fi confirmată la pickup";
 };
 

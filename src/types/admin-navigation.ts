@@ -3,6 +3,7 @@ import type { LucideIcon } from "lucide-react";
 export type AdminSectionKey =
   | "overview"
   | "orders"
+  | "parcel-evaluations"
   | "failed-orders"
   | "contact-messages"
   | "statistics"

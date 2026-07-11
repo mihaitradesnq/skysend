@@ -52,6 +52,7 @@ import type {
 } from "@/types/parcel-estimator";
 import type { OperatorParcelEvaluation } from "@/types/operator-parcel-evaluation";
 import type { SkySendPricingResult } from "@/types/pricing";
+import type { ParcelEstimateTraceSnapshot } from "@/types/operator-parcel-evaluation";
 
 type CreateDeliveryParcelSectionProps = {
   sessionId: string;
@@ -280,6 +281,36 @@ function buildConfirmationDraft(
   };
 }
 
+function buildEstimateTraceSnapshot(
+  estimate: ParcelEstimatorResponse,
+): ParcelEstimateTraceSnapshot | null {
+  const trace = estimate.lookupTrace;
+  if (!trace) {
+    return null;
+  }
+
+  const detectedItemsEvidence = (estimate.detectedItemsDetailed ?? [])
+    .filter(
+      (item) =>
+        (item.sourceUrls && item.sourceUrls.length > 0) ||
+        (item.lookupEvidence && item.lookupEvidence.length > 0),
+    )
+    .map((item) => ({
+      label: item.label,
+      sourceUrls: item.sourceUrls ?? [],
+      lookupEvidence: item.lookupEvidence ?? [],
+      evidenceConfidence: item.evidenceConfidence ?? null,
+    }));
+
+  return {
+    lookupTrace: trace,
+    detectedItemsEvidence,
+    confidenceScore: estimate.confidenceScore ?? null,
+    confidence: estimate.confidence,
+    source: estimate.source,
+  };
+}
+
 function formatWeightRangeFromDraft(draft: ConfirmationDraft) {
   const minKg = parseOptionalNumber(draft.weightMinKg);
   const maxKg = parseOptionalNumber(draft.weightMaxKg) ?? minKg;
@@ -491,6 +522,19 @@ function formatClarificationAnswers(
     .join("\n");
 }
 
+function mergeClarificationAnswers(
+  currentAnswers: ParcelClarificationAnswer[],
+  nextAnswers: ParcelClarificationAnswer[],
+) {
+  const mergedAnswers = new Map<string, ParcelClarificationAnswer>();
+
+  [...currentAnswers, ...nextAnswers].forEach((answer) => {
+    mergedAnswers.set(answer.questionId, answer);
+  });
+
+  return Array.from(mergedAnswers.values());
+}
+
 function buildOperatorAssistantInput(
   evaluation: OperatorParcelEvaluation,
 ): ParcelAssistantInput | null {
@@ -586,6 +630,8 @@ export const CreateDeliveryParcelSection = memo(function CreateDeliveryParcelSec
   const [isEditingConfirmation, setIsEditingConfirmation] = useState(false);
   const [clarificationAnswers, setClarificationAnswers] =
     useState<ClarificationAnswerDraft>({});
+  const [submittedClarificationAnswers, setSubmittedClarificationAnswers] =
+    useState<ParcelClarificationAnswer[]>([]);
   const [isEstimating, setIsEstimating] = useState(false);
   const [estimateError, setEstimateError] = useState<string | null>(null);
   const [operatorEvaluation, setOperatorEvaluation] =
@@ -625,6 +671,9 @@ export const CreateDeliveryParcelSection = memo(function CreateDeliveryParcelSec
   const riskFlags = pendingEstimate?.riskFlags ?? [];
   const clarificationQuestions = getClarificationQuestions(pendingEstimate);
   const hasClarificationQuestions = clarificationQuestions.length > 0;
+  const hasBlockingClarificationQuestions = clarificationQuestions.some(
+    (question) => question.blocksConfirmation === true,
+  );
   const normalizedClarificationAnswers = clarificationQuestions
     .map((question) =>
       normalizeClarificationAnswer(
@@ -636,9 +685,25 @@ export const CreateDeliveryParcelSection = memo(function CreateDeliveryParcelSec
   const canRefineWithAnswers =
     hasClarificationQuestions &&
     normalizedClarificationAnswers.length === clarificationQuestions.length;
+  const hasManualAdvancedDetails = Boolean(
+    advancedDetails.knownWeightKg.trim() ||
+      advancedDetails.lengthCm.trim() ||
+      advancedDetails.widthCm.trim() ||
+      advancedDetails.heightCm.trim() ||
+      advancedDetails.notes.trim() ||
+      advancedDetails.packaging !== parcel.packaging ||
+      advancedDetails.fragile !== (parcel.fragilityLevel === "high"),
+  );
+  const manualWeightKg = parseOptionalNumber(advancedDetails.knownWeightKg);
+  const manualLengthCm = parseOptionalNumber(advancedDetails.lengthCm);
+  const manualWidthCm = parseOptionalNumber(advancedDetails.widthCm);
+  const manualHeightCm = parseOptionalNumber(advancedDetails.heightCm);
+  const canConfirmManualDetails = Boolean(
+    manualWeightKg && manualLengthCm && manualWidthCm && manualHeightCm,
+  );
   const canConfirmEstimate =
     Boolean(editedPendingEstimate && pendingInput) &&
-    !hasClarificationQuestions;
+    !hasBlockingClarificationQuestions;
   const pendingWeightMaxKg = confirmationDraft
     ? parseOptionalNumber(confirmationDraft.weightMaxKg)
     : (editedPendingEstimate?.estimatedWeightMax ?? null);
@@ -648,9 +713,6 @@ export const CreateDeliveryParcelSection = memo(function CreateDeliveryParcelSec
   const activeOperatorQuestion = operatorEvaluation?.questions.find(
     (question) => !question.answer,
   );
-  const operatorQuestionProgress = operatorEvaluation
-    ? Math.min(operatorEvaluation.questions.length, 3)
-    : 0;
   const isOperatorEvaluationClosed =
     operatorEvaluation?.status === "finalized" ||
     operatorEvaluation?.status === "closed";
@@ -694,6 +756,7 @@ export const CreateDeliveryParcelSection = memo(function CreateDeliveryParcelSec
     setConfirmationDraft(null);
     setIsEditingConfirmation(false);
     setClarificationAnswers({});
+    setSubmittedClarificationAnswers([]);
   }, [
     appliedOperatorEvaluationId,
     guidance.suggestedDroneClass,
@@ -714,6 +777,7 @@ export const CreateDeliveryParcelSection = memo(function CreateDeliveryParcelSec
     setConfirmationDraft(null);
     setIsEditingConfirmation(false);
     setClarificationAnswers({});
+    setSubmittedClarificationAnswers([]);
     setEstimateError(null);
   }
 
@@ -753,7 +817,17 @@ export const CreateDeliveryParcelSection = memo(function CreateDeliveryParcelSec
       return;
     }
 
-    const nextInput = buildRequestInput(previousClarificationAnswers);
+    const baseClarificationAnswers = pendingEstimate
+      ? (pendingEstimate.previousClarificationAnswers ??
+        submittedClarificationAnswers)
+      : submittedClarificationAnswers;
+    const answersForRequest = previousClarificationAnswers.length
+      ? mergeClarificationAnswers(
+          baseClarificationAnswers,
+          previousClarificationAnswers,
+        )
+      : baseClarificationAnswers;
+    const nextInput = buildRequestInput(answersForRequest);
     setIsEstimating(true);
     setEstimateError(null);
     setPendingEstimate(null);
@@ -774,7 +848,7 @@ export const CreateDeliveryParcelSection = memo(function CreateDeliveryParcelSec
           contentDescription: nextInput.contents,
           naturalDescription: nextInput.naturalDescription,
           advancedDetails: nextInput.advancedDetails,
-          previousClarificationAnswers,
+          previousClarificationAnswers: answersForRequest,
           category: nextInput.category ?? "retail",
           packaging: nextInput.packaging,
           approximateSize: nextInput.approximateSize,
@@ -790,6 +864,9 @@ export const CreateDeliveryParcelSection = memo(function CreateDeliveryParcelSec
       const payload = (await response.json()) as ParcelEstimatorResponse;
       setPendingEstimate(payload);
       setConfirmationDraft(buildConfirmationDraft(payload, parcel, advancedDetails));
+      setSubmittedClarificationAnswers(
+        payload.previousClarificationAnswers ?? answersForRequest,
+      );
       setClarificationAnswers({});
     } catch (error) {
       setPendingEstimate(null);
@@ -864,6 +941,65 @@ export const CreateDeliveryParcelSection = memo(function CreateDeliveryParcelSec
     setConfirmationDraft(null);
     setIsEditingConfirmation(false);
     setClarificationAnswers({});
+    setSubmittedClarificationAnswers([]);
+  }
+
+  function handleConfirmManualDetails() {
+    if (!canConfirmManualDetails) {
+      return;
+    }
+
+    const manualInput: ParcelAssistantInput = {
+      contents:
+        naturalDescription.trim() ||
+        advancedDetails.notes.trim() ||
+        "Profil colet completat manual.",
+      naturalDescription: {
+        text:
+          naturalDescription.trim() ||
+          advancedDetails.notes.trim() ||
+          "Profil colet completat manual.",
+        locale: "ro-RO",
+        source: "customer",
+        capturedAt: null,
+      },
+      advancedDetails: {
+        packagingType: advancedDetails.packaging,
+        declaredWeightKg: manualWeightKg,
+        declaredDimensionsCm: {
+          lengthCm: manualLengthCm as number,
+          widthCm: manualWidthCm as number,
+          heightCm: manualHeightCm as number,
+        },
+        notes: advancedDetails.notes.trim() || null,
+      },
+      category: parcel.category,
+      packaging: advancedDetails.packaging,
+      approximateSize: parcel.approximateSize,
+      fragilityLevel: advancedDetails.fragile ? "high" : parcel.fragilityLevel,
+    };
+    const manualResult = getLocalParcelAssistantResult(manualInput);
+
+    onAssistantUpdate(manualInput, {
+      ...manualResult,
+      estimatedWeightRange: `${manualWeightKg} kg`,
+      estimatedWeightKg: manualWeightKg,
+      suggestedDimensionsCm: {
+        lengthCm: manualLengthCm as number,
+        widthCm: manualWidthCm as number,
+        heightCm: manualHeightCm as number,
+      },
+      confidenceNote:
+        "Profil confirmat manual din detaliile introduse de client. Configuratia dronei si pretul folosesc aceste valori.",
+      clarificationQuestions: [],
+    });
+    setPendingEstimate(null);
+    setPendingInput(null);
+    setConfirmationDraft(null);
+    setIsEditingConfirmation(false);
+    setClarificationAnswers({});
+    setSubmittedClarificationAnswers([]);
+    setEstimateError(null);
   }
 
   function handleRequestOperatorEvaluation() {
@@ -884,6 +1020,9 @@ export const CreateDeliveryParcelSection = memo(function CreateDeliveryParcelSec
         approximateSize: requestInput.approximateSize,
         fragilityLevel: requestInput.fragilityLevel ?? parcel.fragilityLevel,
       },
+      estimateTrace: editedPendingEstimate
+        ? buildEstimateTraceSnapshot(editedPendingEstimate)
+        : null,
     });
 
     if (!evaluation) {
@@ -937,13 +1076,19 @@ export const CreateDeliveryParcelSection = memo(function CreateDeliveryParcelSec
       return;
     }
 
-    const fallbackInput = buildRequestInput(normalizedClarificationAnswers);
+    const fallbackInput = buildRequestInput(
+      mergeClarificationAnswers(
+        submittedClarificationAnswers,
+        normalizedClarificationAnswers,
+      ),
+    );
     onAssistantUpdate(fallbackInput, getLocalParcelAssistantResult(fallbackInput));
     setPendingEstimate(null);
     setPendingInput(null);
     setConfirmationDraft(null);
     setIsEditingConfirmation(false);
     setClarificationAnswers({});
+    setSubmittedClarificationAnswers([]);
     setEstimateError(null);
   }
 
@@ -987,6 +1132,7 @@ export const CreateDeliveryParcelSection = memo(function CreateDeliveryParcelSec
                 setConfirmationDraft(null);
                 setIsEditingConfirmation(false);
                 setClarificationAnswers({});
+                setSubmittedClarificationAnswers([]);
                 setEstimateError(null);
               }}
               className="min-h-40 w-full resize-y rounded-[var(--ui-radius-card)] border border-input bg-background px-3.5 py-3 text-base leading-7 outline-none transition-[border-color,box-shadow] placeholder:text-muted-foreground/80 focus-visible:border-primary/15 focus-visible:ring-4 focus-visible:ring-ring sm:min-h-44 sm:px-4"
@@ -1113,6 +1259,28 @@ export const CreateDeliveryParcelSection = memo(function CreateDeliveryParcelSec
                   className="min-h-24 w-full resize-y rounded-[var(--ui-radius-card)] border border-input bg-card px-4 py-3 text-sm leading-6 outline-none transition-[border-color,box-shadow] placeholder:text-muted-foreground/70 focus-visible:border-primary/15 focus-visible:ring-4 focus-visible:ring-ring"
                 />
               </label>
+
+              {hasManualAdvancedDetails ? (
+                <div className="grid gap-3 rounded-[calc(var(--radius)+0.35rem)] border border-primary/25 bg-primary/10 p-3.5 sm:col-span-2 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center">
+                  <div className="min-w-0">
+                    <p className="text-sm font-medium text-foreground">
+                      Date manuale detectate
+                    </p>
+                    <p className="mt-1 text-sm leading-6 text-muted-foreground">
+                      Confirma profilul fara AI dupa ce completezi greutatea si
+                      toate cele trei dimensiuni.
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={handleConfirmManualDetails}
+                    disabled={!canConfirmManualDetails}
+                    className="h-11 w-full rounded-2xl bg-primary px-4 text-sm font-semibold text-primary-foreground transition-opacity hover:opacity-90 disabled:pointer-events-none disabled:opacity-55 sm:w-fit"
+                  >
+                    Confirma datele manuale
+                  </button>
+                </div>
+              ) : null}
             </div>
           ) : null}
 
@@ -1196,7 +1364,13 @@ export const CreateDeliveryParcelSection = memo(function CreateDeliveryParcelSec
                   Evaluare operator
                 </div>
                 <p className="mt-2 text-sm leading-6 text-muted-foreground">
-                  Intrebarea {operatorQuestionProgress} din 3
+                  {operatorEvaluation.status === "waiting_customer"
+                    ? "Operatorul are nevoie de un raspuns pentru a continua."
+                    : operatorEvaluation.status === "customer_replied"
+                      ? "Raspunsul tau a fost trimis. Operatorul reia evaluarea."
+                      : operatorEvaluation.status === "finalized"
+                        ? "Operatorul a finalizat profilul coletului."
+                        : "Cererea ta este evaluata de un operator."}
                 </p>
               </div>
               <StatusBadge
@@ -1237,7 +1411,8 @@ export const CreateDeliveryParcelSection = memo(function CreateDeliveryParcelSec
             ) : (
               <div className="rounded-[calc(var(--radius)+0.35rem)] border border-border/75 bg-secondary/25 p-3 text-sm leading-6 text-muted-foreground">
                 Cererea a fost trimisa cu descrierea folosita pentru AI.
-                Operatorul poate pune cel mult 3 intrebari.
+                Acest lucru poate dura cateva minute. Operatorul poate pune
+                intrebari daca are nevoie de clarificari.
               </div>
             )}
 
@@ -1627,6 +1802,12 @@ export const CreateDeliveryParcelSection = memo(function CreateDeliveryParcelSec
             {hasClarificationQuestions ? (
               <div className="grid min-w-0 gap-3 rounded-[calc(var(--radius)+0.375rem)] border border-warning/25 bg-warning/10 px-3.5 py-3.5 sm:px-4">
                 <p className="font-medium text-foreground">Întrebări utile</p>
+                {hasBlockingClarificationQuestions ? (
+                  <p className="text-xs leading-5 text-warning-foreground/90">
+                    Răspunde la întrebările de mai jos pentru a putea confirma
+                    estimarea.
+                  </p>
+                ) : null}
                 <div className="grid gap-2">
                   {clarificationQuestions.map((question) => (
                     <div

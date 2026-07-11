@@ -4,6 +4,7 @@ import type {
   OperatorParcelProfile,
   OperatorParcelSnapshot,
   OperatorParcelWarning,
+  ParcelEstimateTraceSnapshot,
 } from "@/types/operator-parcel-evaluation";
 
 const operatorParcelEvaluationsStorageKey = "skysend:operator-parcel-evaluations";
@@ -36,6 +37,7 @@ type CreateOperatorParcelEvaluationInput = {
   orderId?: string | null;
   initialDescription: string;
   parcelSnapshot: OperatorParcelSnapshot;
+  estimateTrace?: ParcelEstimateTraceSnapshot | null;
 };
 
 type OperatorParcelEvaluationMutationResult =
@@ -46,7 +48,6 @@ type OperatorParcelEvaluationMutationResult =
         | "not_found"
         | "storage_unavailable"
         | "active_question_exists"
-        | "question_limit_reached"
         | "evaluation_closed";
     };
 
@@ -164,6 +165,7 @@ export function createOperatorParcelEvaluation({
   orderId = null,
   initialDescription,
   parcelSnapshot,
+  estimateTrace = null,
 }: CreateOperatorParcelEvaluationInput): OperatorParcelEvaluation | null {
   if (!hasEvaluationStorage()) {
     return null;
@@ -188,6 +190,7 @@ export function createOperatorParcelEvaluation({
     questions: [],
     parcelSnapshot,
     profile: null,
+    estimateTrace,
     createdAt: timestamp,
     updatedAt: timestamp,
     closedAt: null,
@@ -232,10 +235,6 @@ export function addOperatorParcelEvaluationQuestion({
 
   if (evaluation.questions.some((item) => !item.answer)) {
     return { ok: false, reason: "active_question_exists" };
-  }
-
-  if (evaluation.questions.length >= 3) {
-    return { ok: false, reason: "question_limit_reached" };
   }
 
   const timestamp = new Date().toISOString();
@@ -359,6 +358,33 @@ export function finalizeOperatorParcelEvaluation({
   }
 
   return { ok: true, evaluation: updatedEvaluation };
+}
+
+export function markOperatorParcelEvaluationInReview(evaluationId: string) {
+  const evaluations = readStoredEvaluations();
+  const evaluation = evaluations.find((item) => item.id === evaluationId);
+
+  if (!evaluation || isEvaluationClosed(evaluation)) {
+    return null;
+  }
+
+  if (evaluation.status === "waiting_customer") {
+    return evaluation;
+  }
+
+  const updatedEvaluation: OperatorParcelEvaluation = {
+    ...evaluation,
+    status: "in_evaluation",
+    updatedAt: new Date().toISOString(),
+  };
+
+  writeStoredEvaluations(
+    evaluations.map((item) =>
+      item.id === updatedEvaluation.id ? updatedEvaluation : item,
+    ),
+  );
+
+  return updatedEvaluation;
 }
 
 export function markOperatorParcelEvaluationApplied(evaluationId: string) {

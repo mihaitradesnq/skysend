@@ -48,4 +48,6 @@ export const serverEnv = {
   OPENROUTER_APP_NAME: opt(process.env.OPENROUTER_APP_NAME, ""),
 
   OPENAI_API_KEY: opt(process.env.OPENAI_API_KEY, ""),
+
+  TAVILY_API_KEY: opt(process.env.TAVILY_API_KEY, ""),
 } as const;

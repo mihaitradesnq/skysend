@@ -9,6 +9,7 @@ import type {
   ParcelAssistantInput,
   ParcelAssistantResult,
   ParcelCategory,
+  ParcelClarificationQuestion,
   ParcelFragileLevel,
   ParcelPackagingType,
   ParcelSizeOption,
@@ -1557,6 +1558,218 @@ export const parcelAssistantRuleSummary = {
   confidenceModel:
     "Confidence is higher when packaging and contents tell a consistent story, and lower when the description is vague or too short.",
 } as const;
+
+/**
+ * Deterministic, blocking clarification questions for ambiguous product
+ * mentions (e.g. bare "iphone", "samsung", "laptop", "parfum", "vază
+ * ceramica"). These run on every estimate path — including the offline
+ * local fallback — so the UI always requires an answer + re-estimate
+ * before the customer can confirm an estimate for a non-specifiable item.
+ *
+ * Returns the questions in priority order; the caller is expected to cap to
+ * 3 to respect the existing `clarificationQuestions.slice(0, 3)` contract.
+ */
+export function buildBlockingProductClarifications(
+  input: ParcelAssistantInput,
+): ParcelClarificationQuestion[] {
+  const text = normalizeContents(getContentsForAnalysis(input));
+  if (!text) {
+    return [];
+  }
+
+  const questions: ParcelClarificationQuestion[] = [];
+
+  const hasModelToken = /\b\d{1,2}\b|\b(pro|plus|ultra|mini|lite|air|max|se|titum|titanium)\b|\bno\.?\s*\d+/u.test(text);
+
+  // Phone models commonly use brand-letter + digits (s23, a54, m20) or
+  // "note 20" / "z flip"; the generic hasModelToken above misses them.
+  const hasPhoneModelToken =
+    /\b(s|a|m|z)\d{1,2}\b|\b(note\s*\d{1,2}|z\s*(flip|fold))\b|\bgalaxy\s+(s|a|m|z|note)\s*\d{1,2}/u.test(
+      text,
+    );
+
+  // Bare "iphone" / "ipnone" typos etc. — needs the exact model to estimate.
+  if (/\b(iphone)\b/u.test(text) && !(hasModelToken || hasPhoneModelToken)) {
+    questions.push({
+      id: "clarify_iphone_model",
+      question: "Ce model exact de iPhone trimiți?",
+      field: "contents",
+      answerType: "single_select",
+      options: [
+        { value: "iphone 15 pro max", label: "iPhone 15 Pro Max" },
+        { value: "iphone 15 pro", label: "iPhone 15 Pro" },
+        { value: "iphone 15", label: "iPhone 15" },
+        { value: "iphone 14 pro max", label: "iPhone 14 Pro Max" },
+        { value: "iphone 14 pro", label: "iPhone 14 Pro" },
+        { value: "iphone 14", label: "iPhone 14" },
+        { value: "iphone 13", label: "iPhone 13" },
+        { value: "iphone se", label: "iPhone SE" },
+      ],
+      required: true,
+      blocksConfirmation: true,
+      reason:
+        "Fiecare model are greutate și dimensiuni diferite — estimarea trebuie ajustată pe modelul exact.",
+    });
+  }
+
+  // Generic "samsung" / "telefon" / "galaxy" without a model token.
+  if (
+    /\b(samsung|galaxy|telefon|mobil)\b/u.test(text) &&
+    !/\b(iphone)\b/u.test(text) &&
+    !(hasModelToken || hasPhoneModelToken)
+  ) {
+    questions.push({
+      id: "clarify_phone_model",
+      question: "Ce model exact de telefon trimiți?",
+      field: "contents",
+      answerType: "text",
+      options: [],
+      required: true,
+      blocksConfirmation: true,
+      reason:
+        "Modelul și accesoriile incluse schimbă greutatea și dimensiunile pentru drone.",
+    });
+  }
+
+  // Generic "laptop" without any model, diagonal or accessory detail.
+  if (
+    /\b(laptop|notebook|ultrabook)\b/u.test(text) &&
+    !/\b(macbook|asus|lenovo|dell|hp|acer|msi|razer|thinkpad|vivobook|ideapad|inspiron|xps|surface|zenbook)\b/u.test(text) &&
+    !/\b\d{1,2}(\.\d)?\s*(inch|[""]|tol)\b/u.test(text)
+  ) {
+    questions.push({
+      id: "clarify_laptop_model",
+      question: "Ce model și ce diagonală are laptopul?",
+      field: "contents",
+      answerType: "text",
+      options: [],
+      required: true,
+      blocksConfirmation: true,
+      reason:
+        "Greutatea variază de la 1 kg la peste 2.5 kg după model și diagonală.",
+    });
+    questions.push({
+      id: "clarify_laptop_charger",
+      question: "Incluzi și încărcătorul / accesoriile în colet?",
+      field: "contents",
+      answerType: "boolean",
+      options: [
+        { value: "true", label: "Da, include încărcător / accesorii" },
+        { value: "false", label: "Nu, doar laptopul" },
+      ],
+      required: true,
+      blocksConfirmation: true,
+      reason: "Încărcătorul adaugă aproximativ 0.3–0.6 kg.",
+    });
+  }
+
+  // Cosmetic liquid without a clear volume/container.
+  if (
+    /\b(parfum|parfume|parfumuri|cosmetice|cosmetic|lotiune|loțiune|apa\s+de\s+toaleta|apa\s+de\s+parfum)\b/u.test(text) &&
+    !/\b\d+\s*(ml|mililitri|litri|l)\b/u.test(text)
+  ) {
+    questions.push({
+      id: "clarify_perfume_volume",
+      question: "Ce volum are recipientul de parfum/cosmetice?",
+      field: "dimensions",
+      answerType: "single_select",
+      options: [
+        { value: "30ml", label: "30 ml" },
+        { value: "50ml", label: "50 ml" },
+        { value: "100ml", label: "100 ml" },
+        { value: "125ml", label: "125 ml" },
+        { value: "200ml", label: "200 ml" },
+      ],
+      required: true,
+      blocksConfirmation: true,
+      reason:
+        "Volumul recipientului determină greutatea lichidului + recipient de sticlă.",
+    });
+    questions.push({
+      id: "clarify_perfume_container",
+      question: "Cum este recipientul?",
+      field: "packaging",
+      answerType: "single_select",
+      options: [
+        { value: "spray", label: "Sticlă cu spray/pompă" },
+        { value: "dop", label: "Sticlă cu dop" },
+        { value: "tub", label: "Tub/roll-on" },
+      ],
+      required: false,
+      blocksConfirmation: true,
+      reason: "Tipul recipientului influențează greutatea finală a sticlei.",
+    });
+  }
+
+  // Medications / pharmacy without clear temperature sensitivity.
+  if (
+    /\b(medicament|medicamente|medicinal|reteta|rețeta|farmaceutic|farmacia|pharmacy)\b/u.test(text) &&
+    !/\b(ambient|frigider|refrigerat|congelator|temperatura|cold\s*chain|insulated)\b/u.test(text)
+  ) {
+    questions.push({
+      id: "clarify_meds_temperature",
+      question: "Medicamentele necesită temperatură controlată?",
+      field: "weather_sensitivity",
+      answerType: "single_select",
+      options: [
+        { value: "ambient", label: "Temperatură ambientă" },
+        { value: "fridge", label: "Frigider (2–8°C)" },
+        { value: "frozen", label: "Congelator" },
+        { value: "unknown", label: "Nu sunt sigur" },
+      ],
+      required: true,
+      blocksConfirmation: true,
+      reason:
+        "Unele medicamente necesită ambalaj izolat sau manipulare specială.",
+    });
+  }
+
+  // Fragile objects without a clear material or protective packaging.
+  // Skip when a liquid volume is detected — liquid glass/plastic containers
+  // are already handled by the liquid path; the fragile question would be a
+  // low-value false positive for "o sticlă de apă de 2L".
+  const hasLiquidVolume = parseLiquidVolumeLiters(text) !== null;
+  const hasFragileObject =
+    /\b(vaza|oglinda|ceramica|ceramic|sticla|sticlă|porțelan|portelan|cristal|crystal|pahare|pahar)\b/u.test(text);
+  if (hasFragileObject && !hasLiquidVolume) {
+    if (!/\b(sticla|ceramica|ceramic|porțelan|portelan|cristal|crystal|geam|glass)\b/u.test(text)) {
+      questions.push({
+        id: "clarify_fragile_material",
+        question: "Din ce material este obiectul fragil?",
+        field: "fragility",
+        answerType: "single_select",
+        options: [
+          { value: "glass", label: "Sticlă" },
+          { value: "ceramic", label: "Ceramică" },
+          { value: "porcelain", label: "Porțelan" },
+          { value: "crystal", label: "Cristal" },
+        ],
+        required: true,
+        blocksConfirmation: true,
+        reason: "Materialul modifică densitatea și nivelul fragil.",
+      });
+    }
+    if (!/\b(spuma|bubble|bule|spumă|cutie\s+rigida|ambalaj\s+original|protectie|protecție)\b/u.test(text)) {
+      questions.push({
+        id: "clarify_fragile_packaging",
+        question: "Cum este ambalat obiectul fragil?",
+        field: "packaging",
+        answerType: "single_select",
+        options: [
+          { value: "original_box", label: "Cutie originală / ambalaj producător" },
+          { value: "bubble_wrap", label: "Bule + cutie rigidă" },
+          { value: "foam", label: "Spumă protectoare" },
+          { value: "minimal", label: "Ambalaj minim" },
+        ],
+        required: true,
+        blocksConfirmation: true,
+        reason: "Ambalajul fragil influențează greutatea și manipularea.",
+      });
+    }
+  }
+
+  return questions.slice(0, 3);
+}
 
 export function getLocalParcelAssistantResult(
   input: ParcelAssistantInput,

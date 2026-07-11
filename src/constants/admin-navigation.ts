@@ -2,6 +2,7 @@ import {
   BarChart3,
   Inbox,
   LayoutDashboard,
+  MessageSquareText,
   Package2,
   Settings,
   TriangleAlert,
@@ -22,6 +23,13 @@ export const adminNavigationItems: readonly AdminNavigationItem[] = [
     href: "/admin/orders",
     description: "Administrarea comenzilor și detaliilor operaționale.",
     icon: Package2,
+  },
+  {
+    key: "parcel-evaluations",
+    label: "Evaluare colete",
+    href: "/admin/parcel-evaluations",
+    description: "Cereri client pentru profiluri de colet verificate manual.",
+    icon: MessageSquareText,
   },
   {
     key: "failed-orders",

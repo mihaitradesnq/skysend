@@ -1,5 +1,6 @@
 import "server-only";
 import {
+  buildBlockingProductClarifications,
   getDeterministicParcelWeightBounds,
   getLocalParcelAssistantResult,
   getSemanticParcelEstimate,
@@ -7,6 +8,7 @@ import {
   parseLiquidVolumeLiters,
 } from "@/lib/parcel-assistant";
 import { estimateParcelWithOpenRouter } from "@/lib/ai/openrouter-parcel-estimator";
+import { runProductLookupForEstimate } from "@/lib/ai/tavily-product-lookup";
 import { getRecommendedDrone } from "@/lib/drone-recommendation";
 import type { DroneClass } from "@/types/domain";
 import type { ParcelDimensions } from "@/types/drone";
@@ -28,10 +30,13 @@ import type {
   ParcelEstimatedDimensions,
   ParcelEstimatedWeightRange,
   ParcelHandlingNote,
+  ParcelIntelligenceConfidenceLevel,
   ParcelIntelligenceEstimate,
+  ParcelLookupTrace,
   ParcelPackagingInference,
   ParcelRiskFlag,
   ParcelWeatherSensitivity,
+  ProductLookupResult,
 } from "@/types/parcel-intelligence";
 
 type RawParcelEstimate = {
@@ -978,6 +983,19 @@ function buildClarificationQuestions(
     parseExplicitParcelWeightKg(description) !== null;
   const questions: ParcelClarificationQuestion[] = [];
 
+  // Deterministic blocking questions for ambiguous products (bare "iphone",
+  // "samsung", "laptop", "parfum", fragile without packaging, etc.). These
+  // run on every path — including the offline local fallback — so the UI can
+  // require an answer + re-estimate before confirming a non-specifiable item.
+  for (const blocking of buildBlockingProductClarifications(toParcelAssistantInput(input))) {
+    if (!questions.some((q) => q.id === blocking.id)) {
+      questions.push(blocking);
+    }
+    if (questions.length >= 3) {
+      return questions.slice(0, 3);
+    }
+  }
+
   if (needsComputerTypeClarification(input)) {
     questions.push({
       id: "clarify_computer_type",
@@ -990,7 +1008,7 @@ function buildClarificationQuestions(
         { value: "accessories", label: "Accesorii" },
       ],
       required: true,
-      blocksConfirmation: false,
+      blocksConfirmation: true,
       reason: "Tipul de calculator schimba greutatea, dimensiunile si modulul recomandat.",
     });
   }
@@ -1502,31 +1520,218 @@ function combineWithLocalSafety(
   };
 }
 
+function evidenceConfidenceFromScore(score: number): ParcelIntelligenceConfidenceLevel {
+  if (score >= 0.7) {
+    return "high";
+  }
+  if (score >= 0.4) {
+    return "medium";
+  }
+  return "low";
+}
+
+function tokenizeForMatch(value: string): Set<string> {
+  return new Set(
+    normalizeSearchText(value)
+      .split(/[^a-z0-9]+/u)
+      .filter((token) => token.length >= 3),
+  );
+}
+
+const PHONE_BRAND_TOKENS = new Set([
+  "iphone",
+  "samsung",
+  "galaxy",
+  "pixel",
+  "xiaomi",
+  "huawei",
+  "oneplus",
+  "macbook",
+]);
+
+const LAPTOP_BRAND_TOKENS = new Set([
+  "macbook",
+  "asus",
+  "lenovo",
+  "dell",
+  "hp",
+  "acer",
+  "razer",
+  "thinkpad",
+  "vivobook",
+  "ideapad",
+  "inspiron",
+  "surface",
+  "zenbook",
+  "elitebook",
+]);
+
+function isPhoneLabel(label: string): boolean {
+  return /telefon|smartphone|phone|mobil|iphone/i.test(label);
+}
+
+function isLaptopLabel(label: string): boolean {
+  return /laptop|notebook|ultrabook/i.test(label);
+}
+
+function evidenceMatchesItem(label: string, titleTokens: Set<string>): boolean {
+  if (titleTokens.size === 0) {
+    return false;
+  }
+  const labelTokens = tokenizeForMatch(label);
+  for (const token of titleTokens) {
+    if (labelTokens.has(token)) {
+      return true;
+    }
+  }
+  if (isPhoneLabel(label)) {
+    for (const token of titleTokens) {
+      if (PHONE_BRAND_TOKENS.has(token)) {
+        return true;
+      }
+    }
+  }
+  if (isLaptopLabel(label)) {
+    for (const token of titleTokens) {
+      if (LAPTOP_BRAND_TOKENS.has(token)) {
+        return true;
+      }
+    }
+  }
+  return false;
+}
+
+/**
+ * lookup evidence is display + LLM context only — never a weight source.
+ * Matches a Tavily result to a detected item when their normalized tokens
+ * overlap (brand/model keyword) or when the item label is a generic category
+ * (telefon/laptop) and the result title contains a known brand for that
+ * category. Unmatched results still live on `lookupTrace` so admin can see
+ * them at the trace level.
+ */
+function attachLookupEvidenceToItems(
+  items: ParcelDetectedItem[],
+  results: ProductLookupResult[],
+): ParcelDetectedItem[] {
+  if (!results.length || !items.length) {
+    return items;
+  }
+
+  const resultTokens = results.map((result) => ({
+    result,
+    tokens: tokenizeForMatch(`${result.title} ${result.url}`),
+  }));
+
+  return items.map((item) => {
+    const matched = resultTokens
+      .filter(({ tokens }) => evidenceMatchesItem(item.label, tokens))
+      .map(({ result }) => result);
+
+    if (!matched.length) {
+      return item;
+    }
+
+    const bestScore = Math.max(...matched.map((result) => result.confidence));
+    return {
+      ...item,
+      sourceUrls: matched.map((result) => result.url),
+      lookupEvidence: matched,
+      evidenceConfidence: evidenceConfidenceFromScore(bestScore),
+    };
+  });
+}
+
+/**
+ * Stamp the lookup trace and per-item evidence onto the final estimator
+ * response, including the nested intelligence estimate (admin-visible).
+ * `usedInPrompt` records whether the evidence was actually passed to the LLM.
+ */
+function attachLookupToResponse(
+  response: ParcelEstimatorResponse,
+  trace: ParcelLookupTrace,
+  results: ProductLookupResult[],
+  usedInPrompt: boolean,
+): ParcelEstimatorResponse {
+  const stampedTrace: ParcelLookupTrace = { ...trace, usedInPrompt };
+  const detectedItemsDetailed = attachLookupEvidenceToItems(
+    response.detectedItemsDetailed ?? [],
+    results,
+  );
+
+  const intelligence = response.intelligence
+    ? {
+        ...response.intelligence,
+        estimate: response.intelligence.estimate
+          ? {
+              ...response.intelligence.estimate,
+              lookupTrace: stampedTrace,
+              detectedItems: detectedItemsDetailed,
+            }
+          : response.intelligence.estimate,
+      }
+    : response.intelligence;
+
+  return {
+    ...response,
+    detectedItemsDetailed,
+    lookupTrace: stampedTrace,
+    intelligence,
+  };
+}
+
 export async function estimateParcelForDispatch(
   input: ParcelEstimatorRequest,
 ): Promise<ParcelEstimatorResponse> {
   const provider = process.env.AI_PROVIDER?.trim().toLowerCase() || "openrouter";
 
+  // Lightweight preview to drive web-lookup query detection. The local
+  // estimator is sync and gives us the richest detected-items signal.
+  const preview = buildLocalEstimate(input);
+  const lookup = await runProductLookupForEstimate(
+    input,
+    preview.detectedItemsDetailed ?? [],
+  );
+
   if (provider !== "openrouter") {
-    return buildLocalEstimate(input);
+    return attachLookupToResponse(
+      buildLocalEstimate(input),
+      lookup.trace,
+      lookup.results,
+      false,
+    );
   }
 
   let rawEstimate: unknown;
 
   try {
     rawEstimate = await withProviderTimeout(
-      estimateParcelWithOpenRouter(input),
+      estimateParcelWithOpenRouter(input, lookup.results),
       8500,
     );
   } catch {
-    return buildLocalEstimate(input);
+    return attachLookupToResponse(
+      buildLocalEstimate(input),
+      lookup.trace,
+      lookup.results,
+      false,
+    );
   }
 
   const parsedEstimate = parseRawParcelEstimate(rawEstimate);
 
   if (!parsedEstimate) {
-    return buildLocalEstimate(input);
+    return attachLookupToResponse(
+      buildLocalEstimate(input),
+      lookup.trace,
+      lookup.results,
+      false,
+    );
   }
 
-  return combineWithLocalSafety(input, parsedEstimate);
+  return attachLookupToResponse(
+    combineWithLocalSafety(input, parsedEstimate),
+    lookup.trace,
+    lookup.results,
+    lookup.results.length > 0,
+  );
 }

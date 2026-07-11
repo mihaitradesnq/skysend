@@ -19,6 +19,7 @@ import {
   ShieldAlert,
 } from "lucide-react";
 import { AdminPageHeader } from "@/components/admin/admin-page-header";
+import { ParcelEstimateTracePanel } from "@/components/admin/parcel-estimate-trace-panel";
 import { AppButton } from "@/components/shared/app-button";
 import { StatusBadge } from "@/components/shared/status-badge";
 import { Card, CardContent } from "@/components/ui/card";
@@ -449,14 +450,12 @@ function ParcelEvaluationsQueue({
   const activeQuestion = selectedEvaluation?.questions.find(
     (question) => !question.answer,
   );
-  const hasReachedQuestionLimit = (selectedEvaluation?.questions.length ?? 0) >= 3;
   const isClosed =
     selectedEvaluation?.status === "finalized" ||
     selectedEvaluation?.status === "closed";
   const canSendQuestion =
     Boolean(selectedEvaluation && draft.question.trim()) &&
     !activeQuestion &&
-    !hasReachedQuestionLimit &&
     !isClosed;
   const canSaveProfile =
     Boolean(selectedEvaluation) &&
@@ -511,7 +510,7 @@ function ParcelEvaluationsQueue({
               <div>
                 <p className="text-xs text-muted-foreground">Intrebari</p>
                 <p className="mt-1 text-sm font-medium text-foreground">
-                  {evaluation.questions.length}/3
+                  {evaluation.questions.length}
                 </p>
               </div>
               <div className="flex items-center md:justify-end">
@@ -546,10 +545,16 @@ function ParcelEvaluationsQueue({
                   className="w-fit"
                 />
                 <span className="text-muted-foreground">
-                  {selectedEvaluation.questions.length} intrebari folosite din 3
+                  {selectedEvaluation.questions.length} intrebari trimise
                 </span>
               </div>
             </div>
+
+            {selectedEvaluation.estimateTrace ? (
+              <ParcelEstimateTracePanel
+                estimateTrace={selectedEvaluation.estimateTrace}
+              />
+            ) : null}
 
             <div className="grid gap-2">
               <p className="text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">
@@ -909,9 +914,7 @@ export function AdminOperationalCenterView({
       setParcelEvaluationFeedback(
         result.reason === "active_question_exists"
           ? "Exista deja o intrebare fara raspuns."
-          : result.reason === "question_limit_reached"
-            ? "Au fost trimise deja 3 intrebari."
-            : "Intrebarea nu poate fi trimisa pentru aceasta evaluare.",
+          : "Intrebarea nu poate fi trimisa pentru aceasta evaluare.",
       );
       return;
     }

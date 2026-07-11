@@ -7,6 +7,7 @@ import {
 } from "@/constants/parcel-assistant";
 import type { DroneClass } from "@/types/domain";
 import type { ParcelEstimatorRequest } from "@/types/parcel-estimator";
+import type { ProductLookupResult } from "@/types/parcel-intelligence";
 
 const OPENROUTER_CHAT_COMPLETIONS_URL =
   "https://openrouter.ai/api/v1/chat/completions";
@@ -413,7 +414,10 @@ const explicitLiquidVolumePattern = new RegExp(
   "i",
 );
 
-function buildPromptInput(input: ParcelEstimatorRequest) {
+function buildPromptInput(
+  input: ParcelEstimatorRequest,
+  lookupEvidence: ProductLookupResult[] = [],
+) {
   const description = getNaturalDescriptionText(input);
   const explicitWeightMatch = description.match(
     /(\d+(?:[.,]\d+)?)\s*(kg|kgs|kilogram|kilograms|kilograme|kilo|g|gr|gram|grams|grame)\b/i,
@@ -446,6 +450,14 @@ function buildPromptInput(input: ParcelEstimatorRequest) {
     explicitLiquidVolumeFromUser: explicitLiquidVolumeMatch
       ? `${explicitLiquidVolumeMatch[1]} ${explicitLiquidVolumeMatch[2]}`
       : null,
+    productLookupEvidence: lookupEvidence.length
+      ? lookupEvidence.map((result) => ({
+          title: result.title,
+          url: result.url,
+          snippet: result.snippet,
+          confidence: result.confidence,
+        }))
+      : null,
     hardRules: [
       "Return strictly valid JSON matching the schema.",
       "Use kilograms, centimeters and liters.",
@@ -469,6 +481,7 @@ function buildPromptInput(input: ParcelEstimatorRequest) {
       "If physical quantities conflict with your general estimate, obey the physical quantity and reduce confidence instead of guessing too low.",
       "If confidence is low or critical data is missing, still return an estimate and include one short clarification question when possible, maximum three if several critical details are missing.",
       "Keep clarification questions calm and specific, not alarming.",
+      "When productLookupEvidence is provided, use it to refine detected item labels, materials and confidence, but never use a marketplace shipping weight as the net parcel weight; net weight still obeys declared/explicit weights and physical rules.",
       "A deterministic server-side sanity check has final authority after this response, so keep estimates physically defensible.",
     ],
     allowedDroneClasses: droneClassIds.map((id) => ({
@@ -509,6 +522,7 @@ function extractJson(text: string) {
 
 export async function estimateParcelWithOpenRouter(
   input: ParcelEstimatorRequest,
+  lookupEvidence: ProductLookupResult[] = [],
 ): Promise<unknown> {
   const apiKey = getOpenRouterApiKey();
 
@@ -538,6 +552,7 @@ export async function estimateParcelWithOpenRouter(
           responseFormat,
           apiKey,
           model,
+          lookupEvidence,
         );
 
         if (response.status === 400 && responseFormat.type === "json_schema") {
@@ -578,6 +593,7 @@ function createOpenRouterRequest(
   responseFormat: OpenRouterResponseFormat,
   apiKey: string,
   model: string,
+  lookupEvidence: ProductLookupResult[],
 ) {
   return fetch(OPENROUTER_CHAT_COMPLETIONS_URL, {
     method: "POST",
@@ -604,7 +620,7 @@ function createOpenRouterRequest(
         },
         {
           role: "user",
-          content: JSON.stringify(buildPromptInput(input)),
+          content: JSON.stringify(buildPromptInput(input, lookupEvidence)),
         },
       ],
     }),

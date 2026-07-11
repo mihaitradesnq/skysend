@@ -215,7 +215,9 @@ function mockOpenRouterEstimate(overrides = {}) {
 }
 
 const {
+  buildBlockingProductClarifications,
   getDeterministicParcelWeightBounds,
+  getLocalParcelAssistantResult,
   getSemanticParcelEstimate,
   parseLiquidVolumeLiters,
 } = loadSource("src/lib/parcel-assistant.ts");
@@ -344,6 +346,147 @@ openRouter.estimateParcelWithOpenRouter = async () => mockOpenRouterEstimate();
 
 process.env.AI_PROVIDER = "openrouter";
 process.env.OPENROUTER_API_KEY = "test-openrouter-key";
+
+// env.server.ts declares required keys; the Tavily module transitively
+// imports it. Provide stand-ins so the offline regression never reads real
+// secrets and never fails the `req()` guard.
+process.env.CLERK_SECRET_KEY = "test-clerk-secret";
+process.env.SUPABASE_SERVICE_ROLE_KEY = "test-supabase-service-role";
+process.env.STRIPE_SECRET_KEY = "test-stripe-secret";
+
+// Tavily mock: the provider captures runProductLookupForEstimate at load time,
+// so install a single dispatcher whose behavior we toggle per test below.
+const tavily = loadSource("src/lib/ai/tavily-product-lookup.ts");
+const cannedIphoneResult = {
+  title: "Apple iPhone 14 Pro Max specs",
+  url: "https://www.apple.com/iphone-14-pro-max/",
+  snippet: "iPhone 14 Pro Max, 240g, 6.7 inch display.",
+  sourceType: "web",
+  confidence: 0.85,
+};
+const tavilyStack = {
+  mode: "auto",
+  mockResults: [cannedIphoneResult],
+  mockQueries: ["iphone 14 pro max"],
+};
+tavily.runProductLookupForEstimate = async () => {
+  if (tavilyStack.mode === "nokey") {
+    return {
+      trace: {
+        queries: [],
+        results: [],
+        skipped: true,
+        reason: "no_api_key",
+        usedInPrompt: false,
+      },
+      results: [],
+    };
+  }
+  if (tavilyStack.mode === "mock") {
+    return {
+      trace: {
+        queries: tavilyStack.mockQueries,
+        results: tavilyStack.mockResults,
+        skipped: false,
+        reason: null,
+        usedInPrompt: true,
+      },
+      results: tavilyStack.mockResults,
+    };
+  }
+  // "auto" / unset: behave as if no candidate query was identified so the
+  // existing offline regression never makes a real network call.
+  return {
+    trace: {
+      queries: [],
+      results: [],
+      skipped: true,
+      reason: "no_query",
+      usedInPrompt: false,
+    },
+    results: [],
+  };
+};
+
+// Direct unit tests for the new blocking-clarification function.
+const blockingIphone = buildBlockingProductClarifications(assistantInput("iphone"));
+assert(
+  blockingIphone.some(
+    (question) =>
+      question.blocksConfirmation === true &&
+      /model/i.test(question.id) &&
+      /iphone/i.test(question.id),
+  ),
+  `Bare "iphone" should produce a blocking model question, got ${JSON.stringify(blockingIphone.map((q) => q.id))}`,
+);
+
+const blockingIphoneKnown = buildBlockingProductClarifications(
+  assistantInput("iPhone 14 Pro Max in cutie originala"),
+);
+assert(
+  !blockingIphoneKnown.some((question) => /^clarify_iphone_model$/u.test(question.id)),
+  `"iPhone 14 Pro Max" should not block on model (model known), got ${JSON.stringify(blockingIphoneKnown.map((q) => q.id))}`,
+);
+
+const blockingSamsungBare = buildBlockingProductClarifications(assistantInput("samsung"));
+assert(
+  blockingSamsungBare.some((question) => /phone/i.test(question.id)),
+  `Bare "samsung" should produce a blocking phone question, got ${JSON.stringify(blockingSamsungBare.map((q) => q.id))}`,
+);
+
+const blockingSamsungS23 = buildBlockingProductClarifications(assistantInput("Samsung S23"));
+assert(
+  !blockingSamsungS23.some((question) => question.id === "clarify_phone_model"),
+  `"Samsung S23" should not block on phone model (model known), got ${JSON.stringify(blockingSamsungS23.map((q) => q.id))}`,
+);
+
+const blockingLaptop = buildBlockingProductClarifications(assistantInput("laptop"));
+assert(
+  blockingLaptop.some((question) => question.id === "clarify_laptop_model") &&
+    blockingLaptop.some((question) => question.id === "clarify_laptop_charger"),
+  `Bare "laptop" should block on model and charger, got ${JSON.stringify(blockingLaptop.map((q) => q.id))}`,
+);
+
+const blockingPerfume100ml = buildBlockingProductClarifications(
+  assistantInput("parfum 100ml"),
+);
+assert(
+  !blockingPerfume100ml.some(
+    (question) => question.id === "clarify_perfume_volume",
+  ),
+  `"parfum 100ml" should not block on volume (volume present), got ${JSON.stringify(blockingPerfume100ml.map((q) => q.id))}`,
+);
+
+const blockingMeds = buildBlockingProductClarifications(assistantInput("medicamente"));
+assert(
+  blockingMeds.some((question) => question.id === "clarify_meds_temperature"),
+  `Bare "medicamente" should block on temperature, got ${JSON.stringify(blockingMeds.map((q) => q.id))}`,
+);
+
+const blockingVase = buildBlockingProductClarifications(assistantInput("vaza ceramica"));
+assert(
+  blockingVase.some((question) => /fragile/i.test(question.id)),
+  `"vaza ceramica" without packaging detail should block on fragile packaging, got ${JSON.stringify(blockingVase.map((q) => q.id))}`,
+);
+
+// Direct unit tests for Tavily query candidate detection (real function).
+const detect = tavily.detectProductLookupCandidates;
+assert(
+  detect("iPhone 14 Pro Max", []).some((q) => /iphone/i.test(q)),
+  `iPhone 14 Pro Max should yield a lookup query, got ${JSON.stringify(detect("iPhone 14 Pro Max", []))}`,
+);
+assert(
+  detect("Samsung S23", []).some((q) => /samsung/i.test(q)),
+  `Samsung S23 should yield a lookup query, got ${JSON.stringify(detect("Samsung S23", []))}`,
+);
+assert(
+  detect("telefon", []).length === 0,
+  `Bare "telefon" should NOT trigger web lookup (it blocks instead), got ${JSON.stringify(detect("telefon", []))}`,
+);
+assert(
+  detect("2 sticle apa 2L", []).length === 0,
+  `Water bottles (no brand/model) should NOT trigger web lookup, got ${JSON.stringify(detect("2 sticle apa 2L", []))}`,
+);
 
 const { estimateParcelForDispatch } = loadSource(
   "src/lib/ai/parcel-estimator-provider.ts",
@@ -626,5 +769,107 @@ assert(
   overweightValidation.weightMessage.includes("limita"),
   `overweight validation should mention fleet limit, got: ${overweightValidation.weightMessage}`,
 );
+
+// --- Tavily product-lookup integration ---
+
+// iPhone 14 Pro Max (model known → no blocking) with mocked web lookup.
+tavilyStack.mode = "mock";
+tavilyStack.mockResults = [cannedIphoneResult];
+tavilyStack.mockQueries = ["iphone 14 pro max"];
+const iphoneWithBox = await estimateParcelForDispatch(
+  estimatorRequest("iPhone 14 Pro Max in cutie originala"),
+);
+assert(
+  iphoneWithBox.lookupTrace,
+  "iPhone estimate should carry a lookupTrace",
+);
+assert(
+  iphoneWithBox.lookupTrace.skipped === false,
+  `mocked lookup should not be skipped, got reason ${iphoneWithBox.lookupTrace.reason}`,
+);
+assert(
+  iphoneWithBox.lookupTrace.results.length > 0 &&
+    iphoneWithBox.lookupTrace.results[0].sourceType === "web" &&
+    typeof iphoneWithBox.lookupTrace.results[0].confidence === "number",
+  "lookupTrace results should be normalized with sourceType=web + numeric confidence",
+);
+assert(
+  iphoneWithBox.estimatedWeightMin >= 0.3 &&
+    iphoneWithBox.estimatedWeightMax <= 1.2,
+  `iPhone 14 Pro Max in box should have realistic weight, got ${iphoneWithBox.estimatedWeightMin}-${iphoneWithBox.estimatedWeightMax} kg`,
+);
+assert(
+  (iphoneWithBox.detectedItemsDetailed ?? []).some(
+    (item) =>
+      (item.sourceUrls && item.sourceUrls.length > 0) ||
+      (item.lookupEvidence && item.lookupEvidence.length > 0),
+  ),
+  "a detected item should carry web source evidence after lookup",
+);
+
+// Tavily unavailable (no key) → lookup skipped, local fallback, no crash.
+tavilyStack.mode = "nokey";
+const tavilyUnavailable = await estimateParcelForDispatch(
+  estimatorRequest("iPhone 14 Pro Max in cutie originala"),
+);
+assert(
+  tavilyUnavailable.lookupTrace?.skipped === true &&
+    tavilyUnavailable.lookupTrace?.reason === "no_api_key",
+  `Tavily unavailable should skip with no_api_key reason, got ${JSON.stringify(tavilyUnavailable.lookupTrace?.reason)}`,
+);
+assert(
+  tavilyUnavailable.estimatedWeightMin >= 0.3 &&
+    tavilyUnavailable.estimatedWeightMax <= 1.2,
+  `iPhone estimate should still be realistic without Tavily, got ${tavilyUnavailable.estimatedWeightMin}-${tavilyUnavailable.estimatedWeightMax} kg`,
+);
+assert(
+  (tavilyUnavailable.detectedItemsDetailed ?? []).every(
+    (item) => !item.sourceUrls || item.sourceUrls.length === 0,
+  ),
+  "no item should carry web evidence when Tavily is unavailable",
+);
+
+// Cumulative clarification: bare "iphone" blocks; after answering the model,
+// the re-estimate should not block and should still produce a realistic weight.
+tavilyStack.mode = "auto";
+const bareIphone = await estimateParcelForDispatch(estimatorRequest("iphone"));
+assert(
+  bareIphone.clarificationQuestions?.some(
+    (question) =>
+      question.blocksConfirmation === true && /model/i.test(question.id),
+  ),
+  `bare "iphone" dispatch estimate should block on model, got ${JSON.stringify(bareIphone.clarificationQuestions?.map((q) => q.id))}`,
+);
+
+tavilyStack.mode = "mock";
+const clarifiedIphone = await estimateParcelForDispatch(
+  estimatorRequest("iphone", {
+    previousClarificationAnswers: [
+      {
+        questionId: "clarify_iphone_model",
+        field: "contents",
+        answer: "iPhone 14 Pro Max",
+      },
+    ],
+  }),
+);
+assert(
+  !clarifiedIphone.clarificationQuestions?.some(
+    (question) => /^clarify_iphone_model$/u.test(question.id),
+  ),
+  `clarified iPhone model should no longer block on model, got ${JSON.stringify(clarifiedIphone.clarificationQuestions?.map((q) => q.id))}`,
+);
+assert(
+  clarifiedIphone.estimatedWeightMin >= 0.3 &&
+    clarifiedIphone.estimatedWeightMax <= 1.2,
+  `clarified iPhone estimate should remain realistic, got ${clarifiedIphone.estimatedWeightMin}-${clarifiedIphone.estimatedWeightMax} kg`,
+);
+assert(
+  clarifiedIphone.lookupTrace?.results.length > 0,
+  "clarified iPhone estimate should populate lookup trace via mock",
+);
+
+// Reset Tavily mock to the safe no-op default for any future runs.
+tavilyStack.mode = "auto";
 
 console.log("Parcel estimation regression checks passed.");

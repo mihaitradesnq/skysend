@@ -11,6 +11,32 @@ export type ParcelIntelligenceConfidenceLevel = "low" | "medium" | "high";
 
 export type ParcelIntelligenceConfidenceScore = number;
 
+/**
+ * A single normalized web-lookup result used as evidence for a detected item.
+ * Produced by the server-only Tavily product-lookup module; never a weight source.
+ */
+export type ProductLookupResult = {
+  title: string;
+  url: string;
+  snippet: string;
+  sourceType: "web";
+  confidence: number;
+};
+
+/**
+ * Trace of the optional web-lookup step in the hybrid parcel pipeline.
+ * Always present on the estimator response so admin can see whether lookup ran.
+ * `skipped` is true when there is no API key, no identifiable query, or the
+ * request failed — in all those cases the estimator continues with local fallback.
+ */
+export type ParcelLookupTrace = {
+  queries: string[];
+  results: ProductLookupResult[];
+  skipped: boolean;
+  reason: "no_api_key" | "no_query" | "request_failed" | "timeout" | null;
+  usedInPrompt: boolean;
+};
+
 export type ParcelNaturalDescription = {
   text: string;
   locale?: string | null;
@@ -41,6 +67,9 @@ export type ParcelDetectedItem = {
   estimatedDimensionsCm?: ParcelDimensions | null;
   confidenceScore?: ParcelIntelligenceConfidenceScore | null;
   evidence?: string | null;
+  sourceUrls?: string[];
+  lookupEvidence?: ProductLookupResult[];
+  evidenceConfidence?: ParcelIntelligenceConfidenceLevel | null;
 };
 
 export type ParcelPackagingInference = {
@@ -157,6 +186,7 @@ export type ParcelIntelligenceEstimate = {
   previousClarificationAnswers?: ParcelClarificationAnswer[];
   recommendedDroneClass?: DroneClass | null;
   explanation?: string | null;
+  lookupTrace?: ParcelLookupTrace | null;
 };
 
 export type ParcelEditableConfirmation = {
