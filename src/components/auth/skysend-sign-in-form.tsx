@@ -43,6 +43,14 @@ function getClerkErrorMessage(error: unknown) {
   );
 }
 
+function getVisibleAuthMessage(message: string) {
+  if (message.includes("Clerk") && message.includes("verificare")) {
+    return "Autentificarea nu a fost finalizată. Verifică în Clerk dacă emailul este verificat și contul are parola activă, apoi încearcă din nou.";
+  }
+
+  return message;
+}
+
 function PasswordField({
   value,
   onChange,
@@ -168,6 +176,7 @@ export function SkySendSignInForm() {
 
     try {
       const result = await signIn.create({
+        strategy: "password",
         identifier: emailAddress.trim(),
         password,
       });
@@ -319,7 +328,7 @@ export function SkySendSignInForm() {
         ) : null}
         {errorMessage ? (
           <p className="rounded-2xl border border-destructive/35 bg-destructive/10 p-3 text-sm text-destructive">
-            {errorMessage}
+            {getVisibleAuthMessage(errorMessage)}
           </p>
         ) : null}
 
@@ -355,7 +364,7 @@ export function SkySendSignInForm() {
 
           {errorMessage ? (
             <p className="rounded-2xl border border-destructive/35 bg-destructive/10 p-3 text-sm text-destructive">
-              {errorMessage}
+              {getVisibleAuthMessage(errorMessage)}
             </p>
           ) : null}
 
@@ -412,7 +421,7 @@ export function SkySendSignInForm() {
 
           {errorMessage ? (
             <p className="rounded-2xl border border-destructive/35 bg-destructive/10 p-3 text-sm text-destructive">
-              {errorMessage}
+              {getVisibleAuthMessage(errorMessage)}
             </p>
           ) : null}
 

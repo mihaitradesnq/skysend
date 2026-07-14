@@ -141,7 +141,7 @@ export function PublicNavbar({ overlay = false }: PublicNavbarProps) {
                 aria-current={pathname === item.href ? "page" : undefined}
                 style={{ minWidth: stableMinWidthCh(item.labelKey) }}
                 className={cn(
-                  "public-nav-link rounded-full px-3 py-1.5 text-center text-sm transition-colors duration-300",
+                  "public-nav-link whitespace-nowrap rounded-full px-3 py-1.5 text-center text-sm transition-colors duration-300",
                   pathname === item.href
                     ? "bg-secondary/80 text-foreground"
                     : "text-muted-foreground hover:text-foreground",

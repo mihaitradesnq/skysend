@@ -6,8 +6,8 @@ import { useEffect } from "react";
  * Smooth inertia scroll for the public marketing surface.
  *
  * Listens to `wheel` on the window and, once a scroll gesture settles (no new
- * wheel events for a short quiet window), adds a brief residual glide on top of
- * the native scroll so the page keeps coasting for ~0.5s with eased deceleration
+ * wheel events for a short quiet window), adds a short residual glide on top of
+ * the native scroll so the page keeps coasting lightly with eased deceleration
  * — the "feels smooth" effect asked for.
  *
  * Safety rails:
@@ -31,7 +31,6 @@ export function useInertiaScroll() {
     if (reducedMotion || coarsePointer) return;
 
     let lastDeltaY = 0;
-    let lastEventAt = 0;
     let quietTimer: ReturnType<typeof setTimeout> | null = null;
     let glideFrame = 0;
     // Track whether the last user gesture was a wheel, so the glide only ever
@@ -63,7 +62,7 @@ export function useInertiaScroll() {
       if (impulse < 8) return;
 
       const direction = lastDeltaY > 0 ? 1 : -1;
-      const glideDistance = Math.min(impulse * 2.2, 220) * direction;
+      const glideDistance = Math.min(impulse * 1.35, 130) * direction;
       const startTop = getScrollTop();
       const targetTop = Math.min(
         Math.max(startTop + glideDistance, 0),
@@ -71,7 +70,7 @@ export function useInertiaScroll() {
       );
       if (targetTop === startTop) return;
 
-      const duration = 460; // ~0.5s coast, in ms
+      const duration = 340;
       const startTime = performance.now();
 
       function tick(now: number) {
@@ -97,7 +96,6 @@ export function useInertiaScroll() {
       wheelActive = true;
       cancelGlide();
       lastDeltaY = event.deltaY;
-      lastEventAt = Date.now();
 
       if (quietTimer) clearTimeout(quietTimer);
       quietTimer = setTimeout(() => {
@@ -111,7 +109,7 @@ export function useInertiaScroll() {
         const canMove =
           lastDeltaY > 0 ? top < max : top > 0;
         if (canMove) startGlide();
-      }, 90);
+      }, 110);
     }
 
     function cancelUser() {

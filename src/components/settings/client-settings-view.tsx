@@ -355,7 +355,6 @@ export function ClientSettingsView() {
                   <h2 className="truncate font-heading text-2xl tracking-tight text-foreground">
                     {displayName}
                   </h2>
-                  <StatusBadge label="Client SkySend" tone="info" />
                 </div>
                 <div className="mt-4 grid gap-3 sm:grid-cols-2">
                   <div className="rounded-[var(--radius)] border border-border/80 bg-background p-4">

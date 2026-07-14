@@ -29,11 +29,11 @@ export function SavedItemsView() {
     <section className="grid gap-6">
       <PageHeader
         eyebrow="Salvate"
-        title="Locatii si carduri salvate"
-        description="Gestioneaza locatiile folosite des si metodele de plata salvate pentru comenzi."
+        title="Locatii salvate"
+        description="Gestioneaza locatiile folosite des pentru comenzi."
       />
 
-      <div className="grid grid-cols-2 gap-2 rounded-[calc(var(--radius)+0.5rem)] border border-border/80 bg-secondary/35 p-1.5">
+      <div className="grid grid-cols-2 gap-2 rounded-[calc(var(--radius)+0.5rem)] border border-border/80 bg-secondary/35 p-1.5 md:hidden">
         {savedItemsTabs.map((tab) => {
           const Icon = tab.icon;
           const isActive = activeTab === tab.id;
@@ -57,7 +57,12 @@ export function SavedItemsView() {
         })}
       </div>
 
-      {activeTab === "places" ? <SavedPlacesView /> : <PaymentMethodsView />}
+      <div className="md:hidden">
+        {activeTab === "places" ? <SavedPlacesView /> : <PaymentMethodsView />}
+      </div>
+      <div className="hidden md:block">
+        <SavedPlacesView />
+      </div>
     </section>
   );
 }

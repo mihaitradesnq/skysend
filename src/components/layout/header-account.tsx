@@ -239,16 +239,9 @@ function SignedInMenu({
         aria-expanded={open}
         aria-controls={menuId}
         onClick={() => setOpen((v) => !v)}
-        className="flex items-center gap-2 rounded-full border border-border/65 bg-background/65 px-1.5 py-1 pr-3 text-sm font-medium text-foreground transition-colors hover:border-primary/40 hover:bg-background"
+        className="flex items-center gap-2 rounded-full border border-border/65 bg-background/65 px-1.5 py-1 pr-2 text-sm font-medium text-foreground transition-colors hover:border-primary/40 hover:bg-background"
       >
         <UserAvatar />
-        {displayName ? (
-          <span className="max-w-[8.5rem] truncate text-left">{displayName}</span>
-        ) : (
-          <span className="grid h-5 w-16 place-items-center text-xs text-muted-foreground">
-            {t("auth.guest")}
-          </span>
-        )}
         <ChevronDown
           className={cn(
             "size-4 shrink-0 text-muted-foreground transition-transform duration-300",
@@ -472,9 +465,11 @@ function PreferencesMenuTrigger({
                 : "absolute right-0 top-[calc(100%+0.5rem)] w-[min(20rem,calc(100vw-1.5rem))]",
             )}
           >
-            <p className="text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">
-              {signedOutLanguageOnly ? t("preferences.language") : t("auth.preferences")}
-            </p>
+            {!signedOutLanguageOnly ? (
+              <p className="text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">
+                {t("auth.preferences")}
+              </p>
+            ) : null}
             <PreferencesControls
               showCurrency={!signedOutLanguageOnly}
               showTheme={false}
