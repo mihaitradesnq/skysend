@@ -4,18 +4,36 @@ import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { AnimatePresence, m } from "motion/react";
-import { ClerkAuthControls } from "@/components/auth/clerk-auth-controls";
+import { HeaderAccount } from "@/components/layout/header-account";
 import { publicNavigation } from "@/constants/public-navigation";
 import { BrandMark } from "@/components/shared/brand-mark";
 import { Button } from "@/components/ui/button";
+import { useSettings } from "@/lib/settings/settings-context";
+import { dictionaries } from "@/lib/settings/dictionaries";
 import { cn } from "@/lib/utils";
 
 type PublicNavbarProps = {
   overlay?: boolean;
 };
 
+/**
+ * Returns a stable per-link min-width (in `ch` units) derived from the longest
+ * of the RO/EN labels for a translation key. Sized to the longer label so the
+ * box never shrinks below its widest language variant — switching language
+ * only re-centers the text inside a fixed-width box, so the desktop nav never
+ * shifts. `1ch` approximates the average glyph width for the active font.
+ */
+function stableMinWidthCh(key: string): string {
+  const roLabel = dictionaries.ro[key] ?? "";
+  const enLabel = dictionaries.en[key] ?? "";
+  const longest = Math.max(roLabel.length, enLabel.length);
+  // 1.2× buffer covers proportional glyphs (m/w) and rounded to whole ch.
+  return `${Math.ceil(longest * 1.2)}ch`;
+}
+
 export function PublicNavbar({ overlay = false }: PublicNavbarProps) {
   const [isOpen, setIsOpen] = useState(false);
+  const { t } = useSettings();
 
   const [scrolled, setScrolled] = useState(false);
   const pathname = usePathname();
@@ -106,30 +124,31 @@ export function PublicNavbar({ overlay = false }: PublicNavbarProps) {
     >
       <div className="app-container">
         {/* Navbar row: 56px mobile, 64px desktop */}
-        <div className="flex h-14 min-w-0 items-center justify-between gap-4 lg:h-16 lg:gap-6">
-          <Link href="/" aria-label="Acasă SkySend" className="min-w-0 shrink-0">
+        <div className="flex h-14 min-w-0 items-center justify-between gap-4 xl:h-16 xl:gap-6">
+          <Link href="/" aria-label={t("brand.homeAria")} className="min-w-0 shrink-0">
             <BrandMark compact />
           </Link>
 
           {/* Desktop nav links */}
           <nav
-            aria-label="Navigație principală"
-            className="hidden min-w-0 items-center gap-1 lg:flex"
+            aria-label={t("nav.mainAria")}
+            className="hidden min-w-0 items-center gap-1 xl:flex"
           >
             {publicNavigation.map((item) => (
               <Link
                 key={item.href}
                 href={item.href}
                 aria-current={pathname === item.href ? "page" : undefined}
+                style={{ minWidth: stableMinWidthCh(item.labelKey) }}
                 className={cn(
-                  "public-nav-link rounded-full px-3 py-1.5 text-sm transition-colors duration-300",
+                  "public-nav-link rounded-full px-3 py-1.5 text-center text-sm transition-colors duration-300",
                   pathname === item.href
                     ? "bg-secondary/80 text-foreground"
                     : "text-muted-foreground hover:text-foreground",
                   transparent && "text-white/90 hover:text-white",
                 )}
               >
-                {item.label}
+                {t(item.labelKey)}
               </Link>
             ))}
           </nav>
@@ -137,23 +156,24 @@ export function PublicNavbar({ overlay = false }: PublicNavbarProps) {
           {/* Desktop auth controls */}
           <div
             className={cn(
-              "hidden shrink-0 items-center gap-2 lg:flex",
+              "hidden shrink-0 items-center gap-2 xl:flex",
               transparent &&
                 "[&_[data-variant=ghost]]:text-white/78 [&_[data-variant=ghost]:hover]:bg-white/10 [&_[data-variant=ghost]:hover]:text-white [&_[data-variant=outline]]:border-white/24 [&_[data-variant=outline]]:bg-white/8 [&_[data-variant=outline]]:text-white [&_[data-variant=outline]:hover]:bg-white/14 [&_[data-variant=outline]:hover]:text-white",
             )}
           >
-            <ClerkAuthControls />
+            <HeaderAccount />
             <Button
               asChild
               variant="outline"
               size="sm"
+              style={{ minWidth: stableMinWidthCh("nav.app") }}
               className={cn(
-                "transition-colors duration-300",
+                "public-app-button justify-center text-center transition-colors duration-300",
                 transparent &&
                   "border-white/24 bg-white/8 text-white backdrop-blur-md hover:bg-white/14 hover:text-white",
               )}
             >
-              <Link href="/client/create-delivery">Aplicație</Link>
+              <Link href="/client/create-delivery">{t("nav.app")}</Link>
             </Button>
           </div>
 
@@ -162,12 +182,10 @@ export function PublicNavbar({ overlay = false }: PublicNavbarProps) {
             type="button"
             variant="ghost"
             size="icon-sm"
-            className={cn("lg:hidden", transparent && "text-white hover:bg-white/12")}
+            className={cn("xl:hidden", transparent && "text-white hover:bg-white/12")}
             aria-expanded={isOpen}
             aria-controls="public-mobile-nav"
-            aria-label={
-              isOpen ? "Închide meniul de navigație" : "Deschide meniul de navigație"
-            }
+            aria-label={isOpen ? t("nav.closeMenu") : t("nav.openMenu")}
             onClick={() => setIsOpen((v) => !v)}
           >
             {/* 3 bars that animate to X */}
@@ -208,14 +226,14 @@ export function PublicNavbar({ overlay = false }: PublicNavbarProps) {
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.96, y: -8 }}
             transition={{ duration: 0.18, ease: "easeOut" }}
-            className="absolute right-3 top-[calc(100%+0.5rem)] w-[min(20rem,calc(100vw-1.5rem))] overflow-hidden rounded-[calc(var(--radius)+0.75rem)] border border-border/80 bg-background/96 p-2 shadow-[var(--elevation-panel)] backdrop-blur-xl lg:hidden"
+            className="absolute right-3 top-[calc(100%+0.5rem)] w-[min(20rem,calc(100vw-1.5rem))] overflow-hidden rounded-[calc(var(--radius)+0.75rem)] border border-border/80 bg-background/96 p-2 shadow-[var(--elevation-panel)] backdrop-blur-xl xl:hidden"
           >
             <div
               className="flex flex-col gap-2"
               style={{ paddingBottom: "max(1.25rem, env(safe-area-inset-bottom, 1.25rem))" }}
             >
               {/* Nav links */}
-              <nav aria-label="Navigație mobilă" className="grid gap-1">
+              <nav aria-label={t("nav.mobileAria")} className="grid gap-1">
                 {publicNavigation.map((item) => (
                   <Link
                     key={item.href}
@@ -229,24 +247,24 @@ export function PublicNavbar({ overlay = false }: PublicNavbarProps) {
                         : "text-foreground hover:bg-secondary/65 hover:text-primary",
                     )}
                   >
-                    {item.label}
+                    {t(item.labelKey)}
                   </Link>
                 ))}
               </nav>
 
-              {/* Auth footer — visually separated */}
+              {/* Auth + preferences — visually separated */}
               <div className="grid gap-2 border-t border-border/60 pt-2">
-                <ClerkAuthControls mobile onAction={() => setIsOpen(false)} />
+                <HeaderAccount mobile onAction={() => setIsOpen(false)} />
                 <Button
                   asChild
                   variant="outline"
-                  className="h-11 w-full justify-center rounded-2xl"
+                  className="public-app-button h-11 w-full justify-center rounded-2xl"
                 >
                   <Link
                     href="/client/create-delivery"
                     onClick={() => setIsOpen(false)}
                   >
-                    Aplicație
+                    {t("nav.app")}
                   </Link>
                 </Button>
               </div>

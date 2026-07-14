@@ -16,9 +16,11 @@ import {
 } from "lucide-react";
 import { AppButton } from "@/components/shared/app-button";
 import { PageHeader } from "@/components/shared/page-header";
+import { PreferencesControls } from "@/components/shared/preferences/preferences-controls";
 import { SectionCard } from "@/components/shared/section-card";
 import { StatusBadge } from "@/components/shared/status-badge";
 import { useCurrentProfile } from "@/lib/profile-context/profile-context";
+import { useSettings } from "@/lib/settings/settings-context";
 import { showToast } from "@/lib/toast-store";
 import { cn } from "@/lib/utils";
 
@@ -110,6 +112,7 @@ export function ClientSettingsView() {
   const { signOut } = useClerk();
   const { isLoaded: isSignInLoaded, signIn } = useSignIn();
   const { state: profileState, refresh: refreshProfile } = useCurrentProfile();
+  const { t } = useSettings();
   const avatarInputRef = useRef<HTMLInputElement | null>(null);
   const [preferences, setPreferences] = useState<NotificationPreferences>(
     defaultNotificationPreferences,
@@ -395,6 +398,19 @@ export function ClientSettingsView() {
               <p className="text-sm font-medium text-primary">{accountMessage}</p>
             ) : null}
 
+          </div>
+        </SectionCard>
+
+        <SectionCard
+          eyebrow={t("settings.preferences.eyebrow")}
+          title={t("settings.preferences.title")}
+          description={t("settings.preferences.description")}
+        >
+          <div className="grid gap-3">
+            <PreferencesControls />
+            <p className="text-xs leading-5 text-muted-foreground">
+              {t("settings.preferences.note")}
+            </p>
           </div>
         </SectionCard>
 

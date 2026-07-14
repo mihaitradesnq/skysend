@@ -1,8 +1,6 @@
 import {
   BarChart3,
-  Inbox,
   LayoutDashboard,
-  MessageSquareText,
   Package2,
   Settings,
   TriangleAlert,
@@ -25,25 +23,11 @@ export const adminNavigationItems: readonly AdminNavigationItem[] = [
     icon: Package2,
   },
   {
-    key: "parcel-evaluations",
-    label: "Evaluare colete",
-    href: "/admin/parcel-evaluations",
-    description: "Cereri client pentru profiluri de colet verificate manual.",
-    icon: MessageSquareText,
-  },
-  {
     key: "failed-orders",
     label: "Incidente",
     href: "/admin/failed-orders",
     description: "Cazuri eșuate, motive și pași de rezolvare.",
     icon: TriangleAlert,
-  },
-  {
-    key: "contact-messages",
-    label: "Mesaje",
-    href: "/admin/contact-messages",
-    description: "Mesaje primite din formularul public de contact.",
-    icon: Inbox,
   },
   {
     key: "statistics",

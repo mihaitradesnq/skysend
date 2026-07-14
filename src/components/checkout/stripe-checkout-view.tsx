@@ -32,6 +32,7 @@ import { notifyPaymentConfirmed } from "@/lib/notification-events";
 import { calculateSkySendPricing, isValidPricingSnapshot } from "@/lib/pricing";
 import { getStripeJs } from "@/lib/stripe/client";
 import { skySendStripeElementsAppearance } from "@/lib/stripe/elements";
+import { useSettings } from "@/lib/settings/settings-context";
 import { cn } from "@/lib/utils";
 import type {
   Stripe,
@@ -76,14 +77,6 @@ async function readCheckoutJson<T>(
   } catch {
     throw new Error(fallbackMessage);
   }
-}
-
-function formatCurrency(amountMinor: number, currency: string) {
-  return new Intl.NumberFormat("ro-RO", {
-    style: "currency",
-    currency,
-    maximumFractionDigits: 2,
-  }).format(amountMinor / 100);
 }
 
 function formatScheduledDateTime(value: string | null) {
@@ -179,6 +172,7 @@ export function StripeCheckoutView({ orderId }: StripeCheckoutViewProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { user } = useUser();
+  const { formatCurrency } = useSettings();
   const elementContainerRef = useRef<HTMLDivElement | null>(null);
   const stripeRef = useRef<Stripe | null>(null);
   const elementsRef = useRef<StripeElements | null>(null);
@@ -723,7 +717,7 @@ export function StripeCheckoutView({ orderId }: StripeCheckoutViewProps) {
                   Total
                 </div>
                 <p className="mt-2 text-sm leading-6 text-muted-foreground">
-                  {formatCurrency(pricing.total.amountMinor, pricing.total.currency)}
+                  {formatCurrency(pricing.total.amountMinor)}
                 </p>
               </div>
             </div>
@@ -742,7 +736,7 @@ export function StripeCheckoutView({ orderId }: StripeCheckoutViewProps) {
                 >
                   <p className="text-sm font-medium text-foreground">{item.label}</p>
                   <p className="text-sm text-muted-foreground">
-                    {formatCurrency(item.amount.amountMinor, item.amount.currency)}
+                    {formatCurrency(item.amount.amountMinor)}
                   </p>
                 </div>
               ))}
@@ -751,7 +745,7 @@ export function StripeCheckoutView({ orderId }: StripeCheckoutViewProps) {
               <div className="flex flex-wrap items-center justify-between gap-4">
                 <p className="font-medium text-foreground">Total amount</p>
                 <p className="font-heading text-2xl tracking-tight text-foreground">
-                  {formatCurrency(pricing.total.amountMinor, pricing.total.currency)}
+                  {formatCurrency(pricing.total.amountMinor)}
                 </p>
               </div>
             </div>

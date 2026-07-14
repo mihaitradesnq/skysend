@@ -37,6 +37,7 @@ import {
   readOperatorParcelEvaluationForSession,
   subscribeOperatorParcelEvaluations,
 } from "@/lib/operator-parcel-evaluations";
+import { useSettings } from "@/lib/settings/settings-context";
 import { cn } from "@/lib/utils";
 import type {
   ParcelAssistantInput,
@@ -135,14 +136,6 @@ function buildAssistantResult(
     intelligence: estimate.intelligence,
     confirmedProfile: estimate.confirmedProfile,
   };
-}
-
-function formatCurrencyMinor(amountMinor: number, currency: string) {
-  return new Intl.NumberFormat("ro-RO", {
-    style: "currency",
-    currency,
-    maximumFractionDigits: 2,
-  }).format(amountMinor / 100);
 }
 
 function parseOptionalNumber(value: string) {
@@ -638,6 +631,7 @@ export const CreateDeliveryParcelSection = memo(function CreateDeliveryParcelSec
     useState<OperatorParcelEvaluation | null>(() =>
       readOperatorParcelEvaluationForSession(sessionId),
     );
+  const { formatCurrency } = useSettings();
   const [operatorAnswerDraft, setOperatorAnswerDraft] = useState("");
   const [operatorRequestError, setOperatorRequestError] = useState<string | null>(
     null,
@@ -1998,10 +1992,7 @@ export const CreateDeliveryParcelSection = memo(function CreateDeliveryParcelSec
                 <div className="rounded-[calc(var(--radius)+0.25rem)] border border-border/80 bg-background px-4 py-4">
                   <p className="text-sm text-muted-foreground">Total estimat</p>
                   <p className="mt-2 font-heading text-xl tracking-tight">
-                    {formatCurrencyMinor(
-                      pricingSnapshot.total.amountMinor,
-                      pricingSnapshot.total.currency,
-                    )}
+                    {formatCurrency(pricingSnapshot.total.amountMinor)}
                   </p>
                 </div>
               </div>

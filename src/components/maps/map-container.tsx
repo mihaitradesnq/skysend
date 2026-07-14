@@ -13,7 +13,11 @@ import {
   resolveMapMarkerKind,
   resolveMapMarkerState,
 } from "@/components/maps/markers";
-import { defaultMapStyle, fallbackMapStyle, mapConfig } from "@/constants/map";
+import {
+  defaultMapStyle,
+  getFallbackMapStyleForTheme,
+  mapConfig,
+} from "@/constants/map";
 import { cn } from "@/lib/utils";
 import type { MapContainerProps, MapMarkerDefinition, MapOverlayDefinition } from "@/types/map";
 import type { GeoPoint } from "@/types/service-area";
@@ -477,7 +481,12 @@ export const MapContainer = memo(function MapContainer({
       activeOverlayIdsRef.current = [];
       activeLineIdsRef.current = [];
       syncDiagnostics(reason);
-      mapRef.current.setStyle(fallbackMapStyle);
+      // Fallback to the theme-appropriate raster style so the light theme
+      // keeps its Apple-style paper basemap even on a degraded network.
+      const fallbackTheme = document.documentElement.classList.contains("light")
+        ? "light"
+        : "dark";
+      mapRef.current.setStyle(getFallbackMapStyleForTheme(fallbackTheme));
 
       if (fallbackStyleTimeout) {
         window.clearTimeout(fallbackStyleTimeout);
@@ -521,9 +530,22 @@ export const MapContainer = memo(function MapContainer({
 
         maplibregl = maplibre as typeof import("maplibre-gl");
 
+        // Pick the right raster style for the active theme at mount time.
+        // We deliberately read the theme off `<html>` directly (the same way
+        // applyFallbackStyle does below) instead of pulling it from a React
+        // context — this keeps the initialization effect free of new
+        // dependencies and prevents re-mounts on theme changes.
+        const initialTheme = document.documentElement.classList.contains("light")
+          ? "light"
+          : "dark";
+        const initialStyle =
+          typeof defaultMapStyle === "string"
+            ? defaultMapStyle
+            : getFallbackMapStyleForTheme(initialTheme);
+
         const map = new maplibregl.Map({
           container: mapNodeRef.current,
-          style: defaultMapStyle,
+          style: initialStyle,
           center: [
             initialCenterRef.current.longitude,
             initialCenterRef.current.latitude,

@@ -869,9 +869,96 @@
   .public-nav-link {
     transition: opacity 150ms ease, color 300ms ease;
   }
+
+  .public-app-button {
+    position: relative;
+    isolation: isolate;
+    overflow: hidden;
+    border-color: color-mix(in oklab, var(--primary, #20e7d5), white 18%);
+    background:
+      radial-gradient(
+        circle at 24% 18%,
+        color-mix(in oklab, var(--primary, #20e7d5), transparent 62%),
+        transparent 34%
+      ),
+      linear-gradient(
+        135deg,
+        color-mix(in oklab, var(--primary, #20e7d5), #061016 84%),
+        color-mix(in oklab, var(--primary, #20e7d5), #0d2b35 72%)
+      );
+    color: #f8ffff;
+    box-shadow:
+      0 0 0 1px color-mix(in oklab, var(--primary, #20e7d5), transparent 70%) inset,
+      0 12px 30px color-mix(in oklab, var(--primary, #20e7d5), transparent 86%);
+  }
+
+  .public-app-button::before {
+    position: absolute;
+    inset: -45% -70%;
+    z-index: -1;
+    background: linear-gradient(
+      105deg,
+      transparent 38%,
+      color-mix(in oklab, var(--primary, #20e7d5), white 36%) 48%,
+      transparent 58%
+    );
+    opacity: 0.22;
+    transform: translateX(-44%) rotate(8deg);
+    animation: public-app-button-scan 4.8s ease-in-out infinite;
+    content: "";
+  }
+
+  .public-app-button::after {
+    position: absolute;
+    inset: 2px;
+    z-index: -1;
+    border-radius: inherit;
+    border: 1px solid color-mix(in oklab, var(--primary, #20e7d5), transparent 78%);
+    opacity: 0.72;
+    animation: public-app-button-breathe 3.6s ease-in-out infinite;
+    content: "";
+  }
+
+  @keyframes public-app-button-scan {
+    0%,
+    44% {
+      transform: translateX(-44%) rotate(8deg);
+    }
+
+    76%,
+    100% {
+      transform: translateX(44%) rotate(8deg);
+    }
+  }
+
+  @keyframes public-app-button-breathe {
+    0%,
+    100% {
+      opacity: 0.48;
+    }
+
+    50% {
+      opacity: 0.9;
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .public-app-button::before,
+    .public-app-button::after {
+      animation: none;
+    }
+  }
+
   @media (hover: hover) {
     .public-nav-link:hover {
       opacity: 0.78;
+    }
+
+    .public-app-button:hover {
+      border-color: color-mix(in oklab, var(--primary, #20e7d5), white 32%);
+      box-shadow:
+        0 0 0 1px color-mix(in oklab, var(--primary, #20e7d5), transparent 58%) inset,
+        0 16px 38px color-mix(in oklab, var(--primary, #20e7d5), transparent 78%);
     }
   }
   @media (hover: none) {

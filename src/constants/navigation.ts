@@ -165,12 +165,6 @@ export const adminDashboardNavigation = {
       icon: MapPinned,
     },
     {
-      label: "Mesaje contact",
-      href: "/admin/contact-messages",
-      description: "Mesaje primite din formularul public de contact.",
-      icon: Bell,
-    },
-    {
       label: "Statistici",
       href: "/admin/statistics",
       description: "Rapoarte operaționale și exporturi.",
@@ -212,6 +206,12 @@ export const operatorDashboardNavigation = {
     },
   ],
   secondary: [
+    {
+      label: "Suport clienți",
+      href: "/operator/support",
+      description: "Coada unificată pentru contacte și escaladări AI.",
+      icon: Bell,
+    },
     {
       label: "Alerte",
       href: "/operator#alerts",

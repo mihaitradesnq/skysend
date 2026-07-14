@@ -2,7 +2,7 @@ export type UserRole = "client" | "admin" | "operator" | "suport";
 
 export type DashboardRole = Exclude<UserRole, "suport">;
 export type RoleSource = "database" | "clerk_metadata" | "fallback";
-export type RoleHomePath = `/${DashboardRole}`;
+export type RoleHomePath = `/${DashboardRole}` | "/operator/support";
 
 export type RoleMetric = {
   label: string;

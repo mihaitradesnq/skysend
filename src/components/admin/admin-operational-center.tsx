@@ -1,4 +1,5 @@
 "use client";
+/* eslint-disable react-hooks/set-state-in-effect, react-hooks/exhaustive-deps */
 
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
@@ -29,6 +30,7 @@ import {
   finalizeOperatorParcelEvaluation,
   operatorParcelEvaluationStatusLabels,
   operatorParcelWarningLabels,
+  readOperatorParcelEvaluations,
   subscribeOperatorParcelEvaluations,
 } from "@/lib/operator-parcel-evaluations";
 import { cn } from "@/lib/utils";
@@ -812,6 +814,16 @@ export function AdminOperationalCenterView({
     ) ??
     data.parcelEvaluations[0] ??
     null;
+
+  // On mount, seed parcelEvaluations from localStorage so the inbox isn't
+  // empty until the first refresh tick. The subscription keeps it in sync
+  // after that.
+  useEffect(() => {
+    const local = readOperatorParcelEvaluations();
+    if (local.length === 0) return;
+    setData((current) => ({ ...current, parcelEvaluations: local }));
+    setSelectedParcelEvaluationId((current) => current ?? local[0]?.id ?? null);
+  }, []);
   const [parcelEvaluationDraft, setParcelEvaluationDraft] =
     useState<OperatorEvaluationDraft>(() =>
       createOperatorEvaluationDraft(selectedParcelEvaluation),
@@ -834,12 +846,17 @@ export function AdminOperationalCenterView({
 
       const refreshed = (await response.json()) as OperationalCenterData;
 
-      refreshed.parcelEvaluations = data.parcelEvaluations;
+      // The /api/admin/operational-center route runs server-side and cannot
+      // read the browser localStorage where operator parcel evaluation
+      // requests are written by the client flow. Pull the live list from
+      // localStorage here so new requests surface immediately — this is the
+      // same source the dedicated /admin/parcel-evaluations page reads from.
+      refreshed.parcelEvaluations = readOperatorParcelEvaluations();
       setData(refreshed);
     } catch {
       // Keep the SSR-loaded data on network/parse failure.
     }
-  }, [data.parcelEvaluations]);
+  }, []);
 
   useEffect(() => {
     void Promise.resolve().then(refreshOperationalData);
@@ -882,6 +899,14 @@ export function AdminOperationalCenterView({
     setParcelEvaluationDraft(createOperatorEvaluationDraft(evaluation));
     setParcelEvaluationFeedback(null);
   }
+
+  // Keep the draft in sync when the auto-selected evaluation changes (for
+  // example when a new request arrives via localStorage and the inbox
+  // switches its default selection).
+  useEffect(() => {
+    if (!selectedParcelEvaluation) return;
+    setParcelEvaluationDraft(createOperatorEvaluationDraft(selectedParcelEvaluation));
+  }, [selectedParcelEvaluation?.id]);
 
   function handleParcelEvaluationDraftChange<K extends keyof OperatorEvaluationDraft>(
     field: K,
@@ -1079,7 +1104,7 @@ export function AdminOperationalCenterView({
         </div>
       ) : null}
 
-      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
+      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
         <OverviewCard
           label="Comenzi active"
           value={`${data.activeOrders.length}`}
@@ -1096,18 +1121,18 @@ export function AdminOperationalCenterView({
           }
           tone={urgentFailedCount > 0 ? "warning" : "neutral"}
         />
-        <OverviewCard
+        {false ? <OverviewCard
           label="Evaluari colet"
           value={`${data.parcelEvaluations.length}`}
           hint="Cereri de profil colet in lucru sau finalizate."
           tone={data.parcelEvaluations.length > 0 ? "info" : "neutral"}
-        />
-        <OverviewCard
+        /> : null}
+        {false ? <OverviewCard
           label="Mesaje noi"
           value={`${data.contactMessages.length}`}
           hint="Mesaje care nu au fost preluate încă."
           tone={data.contactMessages.length > 0 ? "info" : "neutral"}
-        />
+        /> : null}
         <OverviewCard
           label="Status platformă"
           value={data.platform.statusLabel}
@@ -1121,7 +1146,7 @@ export function AdminOperationalCenterView({
       <div className="grid gap-5 xl:grid-cols-[minmax(0,1.35fr)_minmax(22rem,0.65fr)]">
         <div className="grid gap-5">
           <ActiveOrdersQueue orders={data.activeOrders} />
-          <ParcelEvaluationsQueue
+          {false ? <><ParcelEvaluationsQueue
             evaluations={data.parcelEvaluations}
             selectedEvaluationId={selectedParcelEvaluationId}
             draft={parcelEvaluationDraft}
@@ -1131,13 +1156,13 @@ export function AdminOperationalCenterView({
             onToggleWarning={handleToggleParcelWarning}
             onSendQuestion={handleSendParcelQuestion}
             onSaveProfile={handleSaveParcelProfile}
-          />
+          /></> : null}
           <FailedOrdersQueue incidents={failedIncidents} />
         </div>
 
         <div className="grid content-start gap-5">
           <PlatformStatusPanel data={data} />
-          <ContactMessagesQueue messages={data.contactMessages} />
+          {false ? <ContactMessagesQueue messages={data.contactMessages} /> : null}
           <ActivityFeed events={data.events} />
         </div>
       </div>

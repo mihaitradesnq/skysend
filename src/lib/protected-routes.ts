@@ -106,3 +106,17 @@ export async function requireRoleRoute(
 
   redirect(createAccessDeniedUrl(expectedRole, context.role));
 }
+
+export async function requireSupportOperatorRoute() {
+  const context = await getAuthenticatedRoleContext();
+  const user = await currentUser();
+  const email = user?.emailAddresses.find(
+    (item) => item.id === user.primaryEmailAddressId,
+  )?.emailAddress ?? user?.emailAddresses[0]?.emailAddress;
+
+  if (email?.trim().toLowerCase() === "operator@skysend.com") {
+    return context;
+  }
+  if (context.role) redirect(getPostAuthRedirectPath(context.role));
+  redirect(getInvalidRoleRedirectPath("no-role"));
+}

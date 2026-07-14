@@ -6,11 +6,16 @@ import { AnimatePresence, m } from "motion/react";
 import { PublicFooter } from "@/components/layout/public-footer";
 import { PublicNavbar } from "@/components/layout/public-navbar";
 import { MotionProvider } from "@/components/motion/motion-provider";
+import { useInertiaScroll } from "@/hooks/use-inertia-scroll";
 import { cn } from "@/lib/utils";
 
 export function PublicLayout({ children }: { children: ReactNode }) {
   const pathname = usePathname();
   const isHomePage = pathname === "/";
+
+  // Smooth inertia scroll on the public surface only — keeps the page
+  // coasting briefly after a wheel gesture for a smoother reading feel.
+  useInertiaScroll();
 
   return (
     <MotionProvider>

@@ -1,13 +1,11 @@
 import type { Viewport } from "next";
 import type { ReactNode } from "react";
-import { ClerkProvider } from "@clerk/nextjs";
 import { Manrope, Sora } from "next/font/google";
-import { ToastProvider } from "@/components/shared/toast-provider";
-import { roleRoutingPaths } from "@/constants/roles";
-import { isClerkFrontendConfigured } from "@/lib/clerk-config";
-import { clerkAppearance, clerkLocalization } from "@/lib/clerk-theme";
+import Script from "next/script";
+import { Providers } from "@/components/shared/providers";
+import { SkipLink } from "@/components/shared/skip-link";
 import { defaultMetadata } from "@/lib/metadata";
-import { ProfileProvider } from "@/lib/profile-context/profile-context";
+import { ANTI_FOUC_SCRIPT } from "@/lib/settings/anti-fouc";
 import "./globals.css";
 
 const bodyFont = Manrope({
@@ -34,42 +32,28 @@ export const viewport: Viewport = {
   viewportFit: "cover",
 };
 
-const clerkEnabled = isClerkFrontendConfigured();
-
 export default function RootLayout({
   children,
 }: Readonly<{
   children: ReactNode;
 }>) {
   return (
-    <html lang="ro" className={`dark ${bodyFont.variable} ${displayFont.variable}`}>
+    // suppressHydrationWarning: the anti-FOUC script below mutates the
+    // <html> className/lang before React hydrates, which is intentional.
+    <html
+      lang="ro"
+      className={`dark ${bodyFont.variable} ${displayFont.variable}`}
+      suppressHydrationWarning
+    >
       <body className="min-h-screen min-h-svh overflow-x-clip font-sans antialiased">
-        {clerkEnabled ? (
-          <ClerkProvider
-            appearance={clerkAppearance}
-            localization={clerkLocalization}
-            signInUrl="/sign-in"
-            signUpUrl="/sign-up"
-            signInFallbackRedirectUrl={roleRoutingPaths.authContinue}
-            signUpFallbackRedirectUrl={roleRoutingPaths.authContinue}
-          >
-            <ProfileProvider>
-              <a href="#main-content" className="skip-link">
-                Sari la conținutul principal
-              </a>
-              {children}
-              <ToastProvider />
-            </ProfileProvider>
-          </ClerkProvider>
-        ) : (
-          <>
-            <a href="#main-content" className="skip-link">
-              Sari la conținutul principal
-            </a>
-            {children}
-            <ToastProvider />
-          </>
-        )}
+        {/* Anti-FOUC: apply persisted theme + language before first paint. */}
+        <Script id="skysend-anti-fouc" strategy="beforeInteractive">
+          {ANTI_FOUC_SCRIPT}
+        </Script>
+        <Providers>
+          <SkipLink />
+          {children}
+        </Providers>
       </body>
     </html>
   );

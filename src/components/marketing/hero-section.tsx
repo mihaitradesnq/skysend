@@ -3,6 +3,8 @@
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useMediaQuery } from "@/hooks/use-media-query";
+import { useSettings } from "@/lib/settings/settings-context";
+import { getPublicCopy } from "@/lib/i18n/public-copy";
 
 const DESKTOP_FRAME_COUNT = 150;
 const MOBILE_FRAME_COUNT = 90;
@@ -30,6 +32,8 @@ const MOBILE_FIRST = framePath(true, 1);
 const clamp01 = (value: number): number => Math.min(1, Math.max(0, value));
 
 export function HeroSection() {
+  const { language } = useSettings();
+  const copy = getPublicCopy(language);
   const sectionRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const cyanWashRef = useRef<HTMLDivElement>(null);
@@ -345,7 +349,7 @@ export function HeroSection() {
 
       <section
         ref={sectionRef}
-        aria-label="SkySend — livrare cu drona în Pitești"
+        aria-label={copy.home.hero.title}
         style={{
           position: "relative",
           height: staticMode ? "100dvh" : `${SECTION_HEIGHT}px`,
@@ -461,9 +465,9 @@ export function HeroSection() {
                 textShadow: "0 2px 24px rgba(0,0,0,0.6)",
               }}
             >
-              Trimite colete cu drona,
+              {copy.home.hero.title}
               <br />
-              în Pitești
+              {copy.home.hero.titleAccent}
             </h1>
             <p
               style={{
@@ -475,7 +479,7 @@ export function HeroSection() {
                 textShadow: "0 2px 12px rgba(0,0,0,0.5)",
               }}
             >
-              Securizat. Rapid. Poți urmări de oriunde.
+              {copy.home.hero.subtitle}
             </p>
 
             <div
@@ -502,10 +506,10 @@ export function HeroSection() {
                   textDecoration: "none",
                 }}
               >
-                Creează livrare →
+                {copy.home.hero.primaryCta}
               </Link>
               <Link
-                href="/coverage"
+                href="/#coverage"
                 style={{
                   display: "inline-flex",
                   alignItems: "center",
@@ -520,7 +524,7 @@ export function HeroSection() {
                   border: "1.5px solid rgba(255,255,255,0.4)",
                 }}
               >
-                Verifică zona
+                {copy.home.hero.secondaryCta}
               </Link>
             </div>
           </div>
@@ -584,7 +588,7 @@ export function HeroSection() {
               }}
             >
               <span style={{ animation: "heroPulse 1.4s ease-in-out infinite" }}>
-                Se încarcă experiența...
+                {language === "ro" ? "Se încarcă experiența..." : "Loading experience..."}
               </span>
             </div>
           )}

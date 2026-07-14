@@ -1,0 +1,19 @@
+"use client";
+/* eslint-disable react-hooks/set-state-in-effect */
+
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { SendHorizontal } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
+
+type Summary = { id: string; title: string; mode: string; last_message_at: string; support_tickets?: Array<{ id: string; status: string; assigned_operator_profile_id: string | null }> };
+type Detail = { id: string; support_tickets?: Array<{ id: string; status: string; assigned_operator_profile_id: string | null }>; assistant_messages?: Array<{ id: string; author_type: string; body: string; created_at: string }> };
+export function ClientSupportView() {
+  const [items, setItems] = useState<Summary[]>([]); const [current, setCurrent] = useState<Detail | null>(null); const [body, setBody] = useState("");
+  const load = useCallback(async () => { const response = await fetch("/api/assistant/conversations"); const payload = await response.json(); if (response.ok) setItems(payload.conversations ?? []); }, []);
+  const select = useCallback(async (id: string) => { const response = await fetch(`/api/assistant/conversations/${id}`); const payload = await response.json(); if (response.ok) setCurrent(payload.conversation); }, []);
+  useEffect(() => { void load(); }, [load]);
+  const messages = useMemo(() => (current?.assistant_messages ?? []).slice().sort((a, b) => a.created_at.localeCompare(b.created_at)), [current]); const ticket = current?.support_tickets?.[0];
+  async function send() { if (!current || !body.trim()) return; const response = await fetch(`/api/assistant/conversations/${current.id}/messages`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ body }) }); if (response.ok) { setBody(""); await select(current.id); await load(); } }
+  return <section className="app-container grid gap-5 py-6 lg:grid-cols-[18rem_minmax(0,1fr)]"><aside className="rounded-[var(--ui-radius-panel)] border bg-card p-3"><h1 className="px-2 font-heading text-xl">Suport SkySend</h1><p className="mb-3 px-2 text-sm text-muted-foreground">Conversațiile tale salvate 90 de zile.</p>{items.map((item) => <button key={item.id} type="button" onClick={() => void select(item.id)} className={cn("block w-full rounded-xl p-3 text-left hover:bg-muted", current?.id === item.id && "bg-muted")}><p className="truncate text-sm font-medium">{item.title}</p><p className="mt-1 text-xs text-muted-foreground">{item.support_tickets?.[0]?.status ?? "Asistent AI"}</p></button>)}</aside><main className="flex min-h-[34rem] flex-col rounded-[var(--ui-radius-panel)] border bg-card">{current ? <><header className="border-b p-5"><h2 className="font-heading text-xl">Conversație suport</h2><p className="text-sm text-muted-foreground">{ticket ? `Status: ${ticket.status}${ticket.assigned_operator_profile_id ? " · operator asignat" : ""}` : "Asistent AI"}</p></header><div className="flex-1 space-y-3 overflow-auto p-5">{messages.map((message) => <div key={message.id} className={cn("max-w-[78%] rounded-2xl px-3 py-2 text-sm", message.author_type === "client" ? "ml-auto bg-primary text-primary-foreground" : "bg-muted")}><p>{message.body}</p></div>)}</div>{ticket ? <div className="border-t p-4"><div className="flex gap-2"><textarea value={body} onChange={(event) => setBody(event.target.value)} placeholder="Răspunde în conversație…" className="min-h-12 flex-1 rounded-xl border bg-background p-2 text-sm" /><Button onClick={() => void send()} disabled={!body.trim()}><SendHorizontal className="size-4" />Trimite</Button></div></div> : null}</> : <div className="grid flex-1 place-items-center p-8 text-center text-muted-foreground">Deschide asistentul SkySend pentru a porni o conversație nouă.</div>}</main></section>;
+}

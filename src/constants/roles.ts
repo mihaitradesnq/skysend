@@ -15,22 +15,20 @@ export const userRoles: readonly UserRole[] = [
 
 export const adminPanelRoles: readonly UserRole[] = [
   "admin",
-  "operator",
-  "suport",
 ];
 
 export const roleLabels: Record<UserRole, string> = {
   client: "Client",
   admin: "Admin",
   operator: "Operator",
-  suport: "Suport",
+  suport: "Operator suport",
 };
 
 export const roleHomePaths: Record<UserRole, RoleHomePath> = {
   client: "/client",
   admin: "/admin",
   operator: "/operator",
-  suport: "/admin",
+  suport: "/operator/support",
 };
 
 export const roleRoutingPaths = {
@@ -158,7 +156,7 @@ export const roleBindingStrategy: RoleBindingStrategy = {
   notes: [
     "Persist the effective role in the application database and treat it as the source of truth for authorization.",
     "Mirror the same role into Clerk publicMetadata.role so the UI and middleware can resolve role context quickly.",
-    "Admin panel access is role-based and accepts admin, operator and suport roles; suport is routed to /admin.",
+    "Admin panel access is reserved for admin. The suport role is presented as Operator suport and is routed to /operator/support.",
     "On sign-in or webhook sync, if database and Clerk disagree, prefer the database role and update Clerk metadata.",
     "Only bootstrap from Clerk metadata when the database has no role record yet for that user.",
     "New authenticated users without a persisted role start in the client workspace by default.",
