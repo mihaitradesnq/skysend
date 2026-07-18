@@ -6,6 +6,7 @@ import { usePrefersReducedMotion } from "@/hooks/use-prefers-reduced-motion";
 import type { PublicCopy } from "@/lib/i18n/public-copy";
 import { storytellingAssets } from "@/lib/storytelling-assets";
 import { getHeroFrameIndex, ScrollFrameSequence } from "./scroll-frame-sequence";
+import { ScrollCue } from "./scroll-cue";
 import { StoryChapter } from "./story-chapter";
 import { VCurvedTransition } from "./v-curved-transition";
 import styles from "./storytelling.module.css";
@@ -92,6 +93,8 @@ function HeroScene({
           </>
         )}
       </m.p>
+
+      <ScrollCue ariaLabel={copy.scrollHint} />
 
       <VCurvedTransition
         progress={progress}

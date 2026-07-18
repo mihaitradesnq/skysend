@@ -127,17 +127,9 @@ export type PublicCopy = {
 
   howItWorks: {
     story: {
-      eyebrow: string;
       title: string;
-      intro: string;
+      subtitle: string;
       scrollHint: string;
-      railAria: string;
-      distance: string;
-      scenes: { label: string; eyebrow: string; title: string; body: string }[];
-      finalTitle: string;
-      finalBody: string;
-      finalPrimary: string;
-      finalSecondary: string;
     };
     heroEyebrow: string;
     heroTitle: string;
@@ -475,24 +467,9 @@ const ro: PublicCopy = {
   },
   howItWorks: {
     story: {
-      eyebrow: "Cum funcționează",
-      title: "Un colet. Șase momente clare.",
-      intro: "De la plecare până la lockerul închis la destinație.",
-      scrollHint: "Derulează pentru a urmări livrarea",
-      railAria: "Etapele livrării SkySend",
-      distance: "10 M",
-      scenes: [
-        { label: "Plecare", eyebrow: "01 · Plecare", title: "Sistemul pornește.", body: "Drona părăsește hub-ul și intră pe traseul verificat." },
-        { label: "Sosire", eyebrow: "02 · Sosire", title: "Ajunge deasupra punctului.", body: "Traseul se închide precis, fără contact cu solul." },
-        { label: "Coborâre", eyebrow: "03 · Coborâre", title: "Lockerul coboară.", body: "Troliul îl aduce vertical în zona sigură de predare." },
-        { label: "Preluare", eyebrow: "04 · Preluare", title: "PIN. Colet. Închis.", body: "Coletul intră, ușile se închid, iar lockerul urcă." },
-        { label: "Zbor", eyebrow: "05 · Zbor", title: "În mișcare, mereu vizibil.", body: "Expeditorul și destinatarul urmăresc aceeași cursă live." },
-        { label: "Livrare", eyebrow: "06 · Livrare", title: "Predat. Protejat. Confirmat.", body: "Lockerul se închide, iar livrarea rămâne în istoricul tău." },
-      ],
-      finalTitle: "Primul zbor începe aici.",
-      finalBody: "Spune-ne de unde pleacă și unde trebuie să ajungă.",
-      finalPrimary: "Creează o livrare",
-      finalSecondary: "Vezi tarifele",
+      title: "RUTA CEA MAI RAPIDĂ NU ESTE ÎNTOTDEAUNA DRUMUL",
+      subtitle: "Află cum câteva clickuri devin o livrare prin cer.",
+      scrollHint: "Derulează pentru a continua",
     },
     heroEyebrow: "Cum funcționează",
     heroTitle: "Cum funcționează SkySend",
@@ -1001,24 +978,9 @@ const en: PublicCopy = {
   },
   howItWorks: {
     story: {
-      eyebrow: "How it works",
-      title: "One parcel. Six clear moments.",
-      intro: "From departure to a closed locker at the destination.",
-      scrollHint: "Scroll to follow the delivery",
-      railAria: "SkySend delivery stages",
-      distance: "10 M",
-      scenes: [
-        { label: "Departure", eyebrow: "01 · Departure", title: "The system starts.", body: "The drone leaves the hub and enters its verified route." },
-        { label: "Arrival", eyebrow: "02 · Arrival", title: "It reaches the point above.", body: "The route closes precisely, without touching the ground." },
-        { label: "Descent", eyebrow: "03 · Descent", title: "The locker comes down.", body: "The winch lowers it vertically into the safe handoff zone." },
-        { label: "Pickup", eyebrow: "04 · Pickup", title: "PIN. Parcel. Closed.", body: "The parcel goes in, the doors close and the locker rises." },
-        { label: "Flight", eyebrow: "05 · Flight", title: "Moving, always visible.", body: "Sender and recipient follow the same live journey." },
-        { label: "Delivery", eyebrow: "06 · Delivery", title: "Delivered. Protected. Confirmed.", body: "The locker closes and the delivery stays in your history." },
-      ],
-      finalTitle: "The first flight starts here.",
-      finalBody: "Tell us where it leaves from and where it needs to arrive.",
-      finalPrimary: "Create a delivery",
-      finalSecondary: "See pricing",
+      title: "THE FASTEST ROUTE ISN’T ALWAYS THE ROAD",
+      subtitle: "Learn how a few clicks become a delivery through the sky",
+      scrollHint: "Scroll to continue",
     },
     heroEyebrow: "How it works",
     heroTitle: "How SkySend works",

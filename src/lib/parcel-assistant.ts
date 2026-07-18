@@ -1180,7 +1180,7 @@ export function getSemanticParcelEstimate(
     suggestedDimensionsCm: combineDimensions(matchedProfiles),
     fragileLevel,
     category,
-    confidenceNote: `Estimare cu încredere ridicată: descrierea conține obiecte sau cantități uzuale (${detectedItems.join(", ")}), așa că greutatea realistă are prioritate peste mărimea selectată manual.`,
+    confidenceNote: "Estimare bazată pe obiectele detectate.",
   };
 }
 

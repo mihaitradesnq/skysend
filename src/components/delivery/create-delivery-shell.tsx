@@ -31,7 +31,6 @@ import { CreateDeliveryPaymentPanel } from "@/components/delivery/create-deliver
 import { CreateDeliveryParcelSection } from "@/components/delivery/create-delivery-parcel-section";
 import { LazyMapContainer } from "@/components/maps/lazy-map-container";
 import { AppButton } from "@/components/shared/app-button";
-import { PageHeader } from "@/components/shared/page-header";
 import { SectionCard } from "@/components/shared/section-card";
 import { StatusBadge } from "@/components/shared/status-badge";
 import { Card, CardContent } from "@/components/ui/card";
@@ -2436,7 +2435,7 @@ export function CreateDeliveryShell() {
   );
 
   const parcelActions = (
-    <div className="fixed inset-x-0 bottom-[var(--bottom-nav-safe)] z-40 flex flex-row items-center gap-3 bg-transparent px-4 pb-2 pt-2 shadow-none sm:sticky sm:bottom-0 sm:z-20 sm:flex-row sm:items-center sm:justify-between sm:rounded-[calc(var(--radius)+0.5rem)] sm:border sm:border-border/80 sm:bg-background sm:px-5 sm:pb-4 sm:pt-4 sm:shadow-[0_-18px_34px_-26px_rgba(0,0,0,0.9)]">
+    <div className="fixed inset-x-0 bottom-[var(--bottom-nav-safe)] z-40 flex flex-row items-center gap-3 border-t border-white/10 bg-black/95 px-4 py-2 shadow-[0_-12px_24px_-22px_rgba(0,0,0,0.95)] sm:sticky sm:bottom-0 sm:z-20 sm:flex-row sm:items-center sm:justify-between sm:rounded-[calc(var(--radius)+0.5rem)] sm:border sm:border-border/80 sm:bg-background sm:px-5 sm:pb-4 sm:pt-4 sm:shadow-[0_-18px_34px_-26px_rgba(0,0,0,0.9)]">
       <AppButton
         type="button"
         variant="outline"
@@ -2460,7 +2459,7 @@ export function CreateDeliveryShell() {
   );
 
   const optionsActions = (
-    <div className="fixed inset-x-0 bottom-[var(--bottom-nav-safe)] z-40 flex flex-row items-center gap-3 bg-transparent px-4 pb-2 pt-2 shadow-none sm:sticky sm:bottom-0 sm:z-20 sm:flex-row sm:items-center sm:justify-between sm:rounded-[calc(var(--radius)+0.5rem)] sm:border sm:border-border/80 sm:bg-background sm:px-5 sm:pb-4 sm:pt-4 sm:shadow-[0_-18px_34px_-26px_rgba(0,0,0,0.9)]">
+    <div className="fixed inset-x-0 bottom-[var(--bottom-nav-safe)] z-40 flex flex-row items-center gap-3 border-t border-white/10 bg-black/95 px-4 py-2 shadow-[0_-12px_24px_-22px_rgba(0,0,0,0.95)] sm:sticky sm:bottom-0 sm:z-20 sm:flex-row sm:items-center sm:justify-between sm:rounded-[calc(var(--radius)+0.5rem)] sm:border sm:border-border/80 sm:bg-background sm:px-5 sm:pb-4 sm:pt-4 sm:shadow-[0_-18px_34px_-26px_rgba(0,0,0,0.9)]">
       <AppButton
         type="button"
         variant="outline"
@@ -2491,12 +2490,6 @@ export function CreateDeliveryShell() {
             {compactRouteStepper}
           </div>
         ) : null}
-
-        <PageHeader
-          eyebrow="Verificare și plată"
-          title="Verificare și plată"
-          description="Verifică traseul, coletul, drona, intervalul și prețul înainte de plata securizată."
-        />
 
         {isMobile ? null : stepper}
 
@@ -3094,9 +3087,6 @@ export function CreateDeliveryShell() {
                       >
                         <div className="flex items-center justify-between gap-3">
                           <p className="font-medium text-foreground">{option.label}</p>
-                          {urgency === option.value ? (
-                            <StatusBadge label="Selectată" tone="info" />
-                          ) : null}
                         </div>
                         <p className="mt-2 text-sm leading-6 text-muted-foreground">
                           {option.note}
@@ -3286,26 +3276,6 @@ export function CreateDeliveryShell() {
 
                 <Card className="overflow-hidden">
                   <CardContent className="p-0">
-                    <div className="flex flex-col gap-3 border-b border-border/70 p-4 sm:flex-row sm:items-center sm:justify-between sm:px-5">
-                      <div className="flex flex-wrap items-center gap-3">
-                        <StatusBadge
-                          label="Configurație recomandată"
-                          tone="info"
-                          className="w-fit"
-                        />
-                        <p className="text-sm text-muted-foreground">
-                          Aleasă automat din profilul confirmat al coletului.
-                        </p>
-                      </div>
-                      {selectedDeliveryConfiguration ? (
-                        <StatusBadge
-                          label={deliveryPlatformLabels[selectedDeliveryConfiguration.platform]}
-                          tone="neutral"
-                          className="w-fit sm:justify-self-end"
-                        />
-                      ) : null}
-                    </div>
-
                     {selectedDeliveryConfiguration && confirmedParcelProfile ? (
                       <div>
                         <div className="px-4 py-4 sm:px-5 sm:py-5">

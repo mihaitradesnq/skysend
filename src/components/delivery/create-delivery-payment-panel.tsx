@@ -340,12 +340,11 @@ export function CreateDeliveryPaymentPanel({
 
   return (
     <div className="grid gap-4">
-      <div className="flex flex-wrap items-center justify-between gap-3">
+      <div className="flex items-center gap-3">
         <div className="flex items-center gap-3">
           <WalletCards className="size-4 text-foreground" />
           <p className="font-medium text-foreground">Metodă de plată</p>
         </div>
-        <StatusBadge label="Stripe securizat" tone="info" />
       </div>
 
       {isPreparing ? (

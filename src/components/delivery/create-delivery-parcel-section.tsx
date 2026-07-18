@@ -1109,7 +1109,8 @@ export const CreateDeliveryParcelSection = memo(function CreateDeliveryParcelSec
               </h3>
               <p className="max-w-2xl text-sm leading-6 text-muted-foreground">
                 Estimarea se aplică doar după confirmare, ca să poți verifica
-                greutatea, dimensiunile și protecția necesară.
+                greutatea, dimensiunile și protecția necesară. Începe cu
+                obiectele principale din colet.
               </p>
             </div>
             {hasConfirmedParcel ? (
@@ -1140,19 +1141,6 @@ export const CreateDeliveryParcelSection = memo(function CreateDeliveryParcelSec
               className="min-h-32 w-full resize-y rounded-[var(--ui-radius-card)] border border-input bg-background px-3.5 py-3 text-base leading-7 outline-none transition-[border-color,box-shadow] placeholder:text-muted-foreground/80 focus-visible:border-primary/15 focus-visible:ring-4 focus-visible:ring-ring sm:min-h-36 sm:px-4"
             />
           </label>
-
-          <div className="flex flex-col gap-2 text-sm text-muted-foreground min-[390px]:flex-row min-[390px]:items-center min-[390px]:justify-between">
-            <span>
-              {isEstimating
-                ? "Analizăm descrierea și detaliile opționale."
-                : hasNaturalDescription
-                  ? "Descriere pregătită pentru estimare."
-                  : "Începe cu obiectele principale din colet."}
-            </span>
-            <span className="shrink-0">
-              {naturalDescription.trim().length} caractere
-            </span>
-          </div>
 
           <button
             type="button"
@@ -1331,11 +1319,7 @@ export const CreateDeliveryParcelSection = memo(function CreateDeliveryParcelSec
             </div>
           ) : null}
 
-          <div className="grid gap-3 border-t border-border/70 pt-3 sm:flex sm:flex-row sm:items-center sm:justify-between">
-            <p className="text-sm leading-6 text-muted-foreground">
-              Detaliile avansate rafinează estimarea, dar descrierea rămâne sursa
-              principală.
-            </p>
+          <div className="flex justify-end border-t border-border/70 pt-3">
             <button
               type="button"
               onClick={() => handleEstimateParcel()}
@@ -1758,12 +1742,7 @@ export const CreateDeliveryParcelSection = memo(function CreateDeliveryParcelSec
               <details className="group border-y border-border/70 py-1">
                 <summary className="flex min-h-11 cursor-pointer list-none items-center justify-between gap-3 text-sm font-medium text-foreground">
                   <span>Detalii analiză</span>
-                  <span className="flex items-center gap-2 text-xs text-muted-foreground">
-                    {confirmationDraft
-                      ? parcelFragileLevelLabels[confirmationDraft.fragilityLevel]
-                      : parcelFragileLevelLabels[pendingEstimate.fragileLevel]}
-                    <ChevronDown className="size-4 transition-transform group-open:rotate-180" />
-                  </span>
+                  <ChevronDown className="size-4 text-muted-foreground transition-transform group-open:rotate-180" />
                 </summary>
                 <div className="grid gap-3 pb-3 pt-2">
                   {detectedItems.length ? (

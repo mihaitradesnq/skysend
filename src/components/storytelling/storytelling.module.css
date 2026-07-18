@@ -16,6 +16,15 @@
   color: var(--story-white);
 }
 
+.howStoryRoot {
+  --how-next-scene-color: #08101a;
+  position: relative;
+  isolation: isolate;
+  overflow: clip;
+  background: var(--how-next-scene-color);
+  color: #f2efe6;
+}
+
 .chapter {
   position: relative;
   height: calc(var(--story-screens, 2.4) * 100dvh);
@@ -351,6 +360,112 @@
   inset: 0;
   overflow: hidden;
   background: #77bfdc;
+}
+
+.howHeroScene {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  background: #050b14;
+}
+
+.howHeroVideo {
+  object-fit: cover;
+  object-position: center center;
+}
+
+.howHeroShade {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  background:
+    linear-gradient(180deg, rgb(2 7 13 / 0.08) 0%, rgb(2 7 13 / 0.04) 39%, rgb(2 7 13 / 0.48) 100%),
+    linear-gradient(90deg, rgb(2 7 13 / 0.2), transparent 45%, rgb(2 7 13 / 0.16));
+  pointer-events: none;
+}
+
+.howHeroCopy {
+  position: absolute;
+  bottom: clamp(4.4rem, 12dvh, 8.5rem);
+  left: 50%;
+  z-index: 8;
+  display: grid;
+  width: min(95vw, 86rem);
+  justify-items: center;
+  color: #f5f0e3;
+  text-align: center;
+  transform: translateX(-50%);
+}
+
+.howHeroCopy h1 {
+  max-width: 13ch;
+  margin: 0;
+  font-family: var(--font-story), var(--font-heading), sans-serif;
+  font-size: clamp(4rem, 9.2vw, 10.6rem);
+  font-stretch: condensed;
+  font-weight: 900;
+  letter-spacing: -0.072em;
+  line-height: 0.76;
+  text-shadow: 0 0.18rem 1.6rem rgb(2 7 13 / 0.48);
+  text-transform: uppercase;
+  transform: scaleX(0.79);
+}
+
+.howHeroCopy p {
+  max-width: 34rem;
+  margin: clamp(1.25rem, 3dvh, 2.1rem) 0 0;
+  color: rgb(245 240 227 / 0.9);
+  font-size: clamp(0.92rem, 1.25vw, 1.16rem);
+  font-weight: 600;
+  letter-spacing: -0.018em;
+  line-height: 1.42;
+  text-shadow: 0 0.12rem 0.9rem rgb(2 7 13 / 0.52);
+}
+
+.scrollCue {
+  display: grid;
+  width: 1.45rem;
+  height: 1.45rem;
+  margin-top: clamp(1.05rem, 2.6dvh, 1.75rem);
+  place-items: center;
+  color: #fff;
+  filter: drop-shadow(0 0.08rem 0.45rem rgb(2 7 13 / 0.55));
+  pointer-events: none;
+}
+
+.scrollCue svg {
+  width: 100%;
+  height: 100%;
+  animation: scroll-cue-drift 1.8s ease-in-out infinite;
+}
+
+@keyframes scroll-cue-drift {
+  0%, 100% { transform: translateY(-0.16rem); }
+  50% { transform: translateY(0.2rem); }
+}
+
+.landingHeroScene > .scrollCue {
+  position: absolute;
+  right: 0;
+  bottom: max(1.65rem, calc(env(safe-area-inset-bottom) + 0.65rem));
+  left: 0;
+  z-index: 8;
+  margin-inline: auto;
+}
+
+.howNextScene {
+  position: relative;
+  min-height: 100dvh;
+  overflow: hidden;
+  background: var(--how-next-scene-color);
+}
+
+.howNextScene::before {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(90deg, rgb(53 58 64 / 0.34), transparent 42%);
+  content: "";
+  pointer-events: none;
 }
 
 .landingHeroFrames { z-index: 0; }
@@ -2014,6 +2129,31 @@
     padding-block: 0.16em 0.24em;
     transform: translate(-50%, -50%) scaleX(0.8);
   }
+  .howHeroCopy {
+    bottom: max(13rem, calc(env(safe-area-inset-bottom) + 2.6rem));
+    width: calc(100vw - 1.5rem);
+  }
+  .howHeroCopy h1 {
+    max-width: 12ch;
+    font-size: clamp(2.9rem, 13.6vw, 4.6rem);
+    letter-spacing: -0.075em;
+    line-height: 0.79;
+    transform: scaleX(0.84);
+  }
+  .howHeroCopy p {
+    width: min(17rem, calc(100vw - 2rem));
+    max-width: none;
+    margin-top: 0.8rem;
+    font-size: 0.88rem;
+  }
+  .scrollCue {
+    width: 1.25rem;
+    height: 1.25rem;
+    margin-top: 1rem;
+  }
+  .landingHeroScene > .scrollCue {
+    bottom: max(1rem, calc(env(safe-area-inset-bottom) + 0.45rem));
+  }
   .heroTitleWrap { top: max(6.3rem, 15dvh); }
   .heroTitleWrap h1 { font-size: clamp(5.2rem, 25vw, 8rem); line-height: 0.82; }
 
@@ -2159,6 +2299,7 @@
 @media (prefers-reduced-motion: reduce) {
   .mediaLoader span::after,
   .scrollHint svg,
+  .scrollCue svg,
   .hotspotPulse,
   .rotorField span,
   .finalCtaPrimary {
