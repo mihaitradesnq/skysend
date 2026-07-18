@@ -72,7 +72,12 @@ describe("POST /api/orders/create — idempotency on localOrderId", () => {
   it("returns 404 when the profile is missing", async () => {
     clerkMock.auth.mockResolvedValue({ userId: "user_orphan" });
 
-    const response = await postJson({ localOrderId: "SKY-PT-1" });
+    const response = await postJson({
+      payload: {},
+      localOrderId: "SKY-PT-1",
+      publicTrackingCode: "TRK-MISSING",
+      recipientTrackingToken: "TKN-MISSING",
+    });
 
     expect(response.status).toBe(404);
   });

@@ -88,6 +88,7 @@ export type MapContainerProps = {
   lines?: readonly MapLineDefinition[];
   selectedPoint?: GeoPoint | null;
   onPointSelect?: (point: GeoPoint) => void;
+  onViewportSettled?: (viewport: MapViewport) => void;
   overlayContent?: ReactNode;
 };
 

@@ -23,6 +23,9 @@ function buildRow(
     status: "new",
     read_at: null,
     internal_note: null,
+    last_message_at: "2026-05-23T10:00:00Z",
+    replied_at: null,
+    closed_at: null,
     created_at: "2026-05-23T10:00:00Z",
     updated_at: "2026-05-23T10:00:00Z",
     ...overrides,
@@ -61,7 +64,7 @@ describe("rowToContactMessage", () => {
 
   it("throws on an unknown category", () => {
     expect(() =>
-      rowToContactMessage(buildRow({ category: "billing" })),
+      rowToContactMessage(buildRow({ category: "not-a-category" })),
     ).toThrowError(RepositoryError);
   });
 });
@@ -125,7 +128,7 @@ describe("createInputToRow", () => {
         senderEmail: "a@b.co",
         subject: "T",
         body: "B",
-        category: "billing" as never,
+        category: "not-a-category" as never,
       }),
     ).toThrowError(RepositoryError);
   });
@@ -194,7 +197,7 @@ describe("parseContactMessageStatus / Category", () => {
 
   it("rejects unknown category strings", () => {
     expect(() =>
-      parseContactMessageCategory("billing"),
+      parseContactMessageCategory("not-a-category"),
     ).toThrowError(RepositoryError);
   });
 });

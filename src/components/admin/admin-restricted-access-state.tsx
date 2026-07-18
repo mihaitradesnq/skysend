@@ -6,6 +6,7 @@ import { useClerk } from "@clerk/nextjs";
 import { roleLabels } from "@/constants/roles";
 import { AppButton } from "@/components/shared/app-button";
 import type { UserRole } from "@/types/roles";
+import { AdminAccessRequestGate } from "@/components/admin/admin-access-request-gate";
 
 export function AdminRestrictedAccessState({
   currentRole,
@@ -14,6 +15,8 @@ export function AdminRestrictedAccessState({
 }) {
   const { signOut } = useClerk();
   const [isSigningOut, setIsSigningOut] = useState(false);
+
+  if (currentRole === "operator") return <AdminAccessRequestGate />;
 
   async function handleSignOut() {
     setIsSigningOut(true);

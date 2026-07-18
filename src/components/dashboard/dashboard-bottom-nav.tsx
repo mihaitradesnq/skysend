@@ -25,8 +25,8 @@ export function DashboardBottomNav() {
       className="fixed inset-x-0 bottom-0 z-40 md:hidden"
       style={{ paddingBottom: "env(safe-area-inset-bottom, 0px)" }}
     >
-      <div className="absolute inset-x-0 bottom-0 -z-10 h-[calc(4.75rem+env(safe-area-inset-bottom,0px))] border-t border-white/8 bg-background/94 shadow-[0_-18px_42px_-28px_rgba(0,0,0,0.92)] backdrop-blur-2xl" />
-      <div className="mx-auto grid h-[4.75rem] w-full max-w-[30rem] grid-cols-4 items-center gap-1 px-[max(0.45rem,env(safe-area-inset-left,0px))] py-1.5">
+      <div className="absolute inset-x-0 bottom-0 -z-10 h-[calc(var(--bottom-nav-height)+env(safe-area-inset-bottom,0px))] border-t border-white/8 bg-background/94 shadow-[0_-18px_42px_-28px_rgba(0,0,0,0.92)] backdrop-blur-2xl" />
+      <div className="mx-auto grid h-[var(--bottom-nav-height)] w-full max-w-[30rem] grid-cols-4 items-center gap-1 px-[max(0.45rem,env(safe-area-inset-left,0px))] py-1.5">
         {NAV_ITEMS.map((item) => {
           const Icon = item.icon;
           const isActive =

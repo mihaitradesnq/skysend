@@ -12,7 +12,6 @@ export const userRoleLabels: Record<UserRole, string> = {
   client: "Client",
   admin: "Admin",
   operator: "Operator",
-  suport: "Suport",
 };
 
 export const orderStatusLabels: Record<OrderStatus, string> = {
@@ -66,7 +65,6 @@ export const userRoleOptions: Option<UserRole>[] = [
   { label: userRoleLabels.client, value: "client" },
   { label: userRoleLabels.admin, value: "admin" },
   { label: userRoleLabels.operator, value: "operator" },
-  { label: userRoleLabels.suport, value: "suport" },
 ];
 
 export const orderStatusOptions: Option<OrderStatus>[] = [

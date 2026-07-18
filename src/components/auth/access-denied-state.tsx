@@ -38,7 +38,7 @@ export function AccessDeniedState({
         title={missingRole ? "Lipsește contextul rolului" : "Rol nepotrivit"}
         description={
           missingRole
-            ? "Contul este autentificat, dar accesul necesită un rol valid de client, admin, operator sau suport."
+            ? "Contul este autentificat, dar accesul necesită un rol activ de Client, Operator sau Admin."
             : "Autentificarea a reușit, dar acest spațiu de lucru nu este disponibil cu rolul curent al contului."
         }
       >

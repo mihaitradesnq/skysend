@@ -45,10 +45,10 @@ function buildPolygonConfig(polygon: GeoPoint[]): ServiceAreaConfig {
 }
 
 const PITESTI_BBOX: GeoPoint[] = [
-  { latitude: 44.82, longitude: 24.82 }, // SW
-  { latitude: 44.82, longitude: 24.92 }, // SE
-  { latitude: 44.90, longitude: 24.92 }, // NE
-  { latitude: 44.90, longitude: 24.82 }, // NW
+  { latitude: 44.82, longitude: 24.82 },
+  { latitude: 44.82, longitude: 24.92 },
+  { latitude: 44.90, longitude: 24.92 },
+  { latitude: 44.90, longitude: 24.82 },
 ];
 
 function offsetKm(origin: GeoPoint, kmEast: number, kmNorth: number): GeoPoint {

@@ -30,6 +30,12 @@ export type OperatorParcelQuestion = {
   answer: string | null;
   askedAt: string;
   answeredAt: string | null;
+  attachments?: Array<{
+    id: string;
+    original_name: string;
+    content_type: string;
+    size_bytes: number;
+  }>;
 };
 
 export type OperatorParcelProfile = {
@@ -47,11 +53,6 @@ export type OperatorParcelSnapshot = {
   fragilityLevel: ParcelFragileLevel;
 };
 
-/**
- * Snapshot of the AI estimate's lookup evidence, persisted so admin can see the
- * web sources / per-item evidence behind a parcel estimate. Optional: existing
- * localStorage evaluations without it load fine.
- */
 export type ParcelEstimateTraceSnapshot = {
   lookupTrace: ParcelLookupTrace;
   detectedItemsEvidence: Array<{

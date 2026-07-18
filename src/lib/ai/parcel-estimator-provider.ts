@@ -983,10 +983,6 @@ function buildClarificationQuestions(
     parseExplicitParcelWeightKg(description) !== null;
   const questions: ParcelClarificationQuestion[] = [];
 
-  // Deterministic blocking questions for ambiguous products (bare "iphone",
-  // "samsung", "laptop", "parfum", fragile without packaging, etc.). These
-  // run on every path — including the offline local fallback — so the UI can
-  // require an answer + re-estimate before confirming a non-specifiable item.
   for (const blocking of buildBlockingProductClarifications(toParcelAssistantInput(input))) {
     if (!questions.some((q) => q.id === blocking.id)) {
       questions.push(blocking);
@@ -1601,14 +1597,6 @@ function evidenceMatchesItem(label: string, titleTokens: Set<string>): boolean {
   return false;
 }
 
-/**
- * lookup evidence is display + LLM context only — never a weight source.
- * Matches a Tavily result to a detected item when their normalized tokens
- * overlap (brand/model keyword) or when the item label is a generic category
- * (telefon/laptop) and the result title contains a known brand for that
- * category. Unmatched results still live on `lookupTrace` so admin can see
- * them at the trace level.
- */
 function attachLookupEvidenceToItems(
   items: ParcelDetectedItem[],
   results: ProductLookupResult[],
@@ -1641,11 +1629,6 @@ function attachLookupEvidenceToItems(
   });
 }
 
-/**
- * Stamp the lookup trace and per-item evidence onto the final estimator
- * response, including the nested intelligence estimate (admin-visible).
- * `usedInPrompt` records whether the evidence was actually passed to the LLM.
- */
 function attachLookupToResponse(
   response: ParcelEstimatorResponse,
   trace: ParcelLookupTrace,
@@ -1684,8 +1667,6 @@ export async function estimateParcelForDispatch(
 ): Promise<ParcelEstimatorResponse> {
   const provider = process.env.AI_PROVIDER?.trim().toLowerCase() || "openrouter";
 
-  // Lightweight preview to drive web-lookup query detection. The local
-  // estimator is sync and gives us the richest detected-items signal.
   const preview = buildLocalEstimate(input);
   const lookup = await runProductLookupForEstimate(
     input,

@@ -1,4 +1,5 @@
 import {
+  ClipboardCheck,
   CreditCard,
   Bell,
   LayoutDashboard,
@@ -10,8 +11,8 @@ import {
   ShieldCheck,
   TriangleAlert,
   UserRound,
-  Warehouse,
   Wrench,
+  Mail,
 } from "lucide-react";
 import { roleHomePaths } from "@/constants/roles";
 import type { RoleNavigation } from "@/types/navigation";
@@ -33,7 +34,7 @@ const workspaceItems = {
   operator: {
     label: "Spațiu operator",
     href: roleHomePaths.operator,
-    description: "Flux misiuni, paduri și pregătirea dronelor.",
+    description: "Suport, evaluări de colete și mesaje de pe site.",
     icon: Wrench,
   },
 } as const;
@@ -156,6 +157,18 @@ export const adminDashboardNavigation = {
       description: "Livrări nereușite, motive și pași de rezolvare.",
       icon: TriangleAlert,
     },
+    {
+      label: "Evaluări colete",
+      href: "/admin/parcel-evaluations",
+      description: "Cereri reale de evaluare și profile confirmate de operator.",
+      icon: ClipboardCheck,
+    },
+    {
+      label: "Mesaje de pe site",
+      href: "/admin/site-messages",
+      description: "Inbox public cu răspunsuri email prin SkySend.",
+      icon: Mail,
+    },
   ],
   secondary: [
     {
@@ -189,20 +202,20 @@ export const operatorDashboardNavigation = {
     {
       label: "Prezentare generală",
       href: "/operator#overview",
-      description: "Ritmul misiunilor, pregătire și densitate de zbor live.",
+      description: "Acces rapid la fluxurile zilnice ale operatorului.",
       icon: LayoutDashboard,
     },
     {
-      label: "Misiuni",
-      href: "/operator#missions",
-      description: "Cozi de dispatch, excepții de traseu și încărcare misiuni.",
-      icon: Route,
+      label: "Evaluări colete",
+      href: "/operator/parcel-evaluations",
+      description: "Clarifică și confirmă greutatea și dimensiunile coletelor.",
+      icon: ClipboardCheck,
     },
     {
-      label: "Paduri",
-      href: "/operator#pads",
-      description: "Pregătirea padurilor, calitatea rotației și statusul stației.",
-      icon: Warehouse,
+      label: "Mesaje de pe site",
+      href: "/operator/site-messages",
+      description: "Răspunde prin email solicitărilor publice.",
+      icon: Mail,
     },
   ],
   secondary: [
@@ -212,17 +225,11 @@ export const operatorDashboardNavigation = {
       description: "Coada unificată pentru contacte și escaladări AI.",
       icon: Bell,
     },
-    {
-      label: "Alerte",
-      href: "/operator#alerts",
-      description: "Vreme, flux de incidente și escaladări operator.",
-      icon: TriangleAlert,
-    },
   ],
   workspaces: [
+    workspaceItems.admin,
     workspaceItems.operator,
     workspaceItems.client,
-    workspaceItems.admin,
   ],
 } as const;
 

@@ -4,8 +4,10 @@ import { arePopupNotificăriEnabled } from "@/lib/notification-preferences";
 type ToastListener = (toasts: SkySendToast[]) => void;
 
 const maxVisibleToasts = 3;
+const defaultToastDurationMs = 2000;
 const listeners = new Set<ToastListener>();
 let toasts: SkySendToast[] = [];
+let dismissalTimer: number | null = null;
 
 function createToastId() {
   const entropy =
@@ -18,6 +20,22 @@ function createToastId() {
 
 function notifyListeners() {
   listeners.forEach((listener) => listener(toasts));
+}
+
+function scheduleNextDismissal() {
+  if (dismissalTimer || toasts.length === 0 || typeof window === "undefined") {
+    return;
+  }
+
+  const oldestToast = toasts.at(-1);
+  if (!oldestToast) {
+    return;
+  }
+
+  dismissalTimer = window.setTimeout(() => {
+    dismissalTimer = null;
+    dismissToast(oldestToast.id);
+  }, oldestToast.durationMs);
 }
 
 export function subscribeToasts(listener: ToastListener) {
@@ -35,6 +53,7 @@ export function getToastsSnapshot() {
 export function dismissToast(toastId: string) {
   toasts = toasts.filter((toast) => toast.id !== toastId);
   notifyListeners();
+  scheduleNextDismissal();
 }
 
 export function showToast(input: SkySendToastInput) {
@@ -50,16 +69,13 @@ export function showToast(input: SkySendToastInput) {
     title: input.title,
     message: input.message,
     tone: input.tone ?? "info",
-    durationMs: input.durationMs ?? 3800,
+    durationMs: input.durationMs ?? defaultToastDurationMs,
     createdAt: Date.now(),
   };
 
   toasts = [toast, ...toasts].slice(0, maxVisibleToasts);
   notifyListeners();
-
-  if (typeof window !== "undefined") {
-    window.setTimeout(() => dismissToast(toast.id), toast.durationMs);
-  }
+  scheduleNextDismissal();
 
   return toast;
 }

@@ -11,10 +11,6 @@ export type ParcelIntelligenceConfidenceLevel = "low" | "medium" | "high";
 
 export type ParcelIntelligenceConfidenceScore = number;
 
-/**
- * A single normalized web-lookup result used as evidence for a detected item.
- * Produced by the server-only Tavily product-lookup module; never a weight source.
- */
 export type ProductLookupResult = {
   title: string;
   url: string;
@@ -23,12 +19,6 @@ export type ProductLookupResult = {
   confidence: number;
 };
 
-/**
- * Trace of the optional web-lookup step in the hybrid parcel pipeline.
- * Always present on the estimator response so admin can see whether lookup ran.
- * `skipped` is true when there is no API key, no identifiable query, or the
- * request failed — in all those cases the estimator continues with local fallback.
- */
 export type ParcelLookupTrace = {
   queries: string[];
   results: ProductLookupResult[];

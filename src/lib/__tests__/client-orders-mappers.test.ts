@@ -112,8 +112,7 @@ describe("mapDbPaymentStatusToCreated", () => {
     expect(mapDbPaymentStatusToCreated("refund_pending")).toBe("refund_pending");
   });
   it("falls back to 'unpaid' for unknown values", () => {
-    // @ts-expect-error — defensive cast
-    expect(mapDbPaymentStatusToCreated("nope")).toBe("unpaid");
+    expect(mapDbPaymentStatusToCreated("nope" as never)).toBe("unpaid");
   });
 });
 
@@ -126,7 +125,7 @@ describe("mapOrderSummary", () => {
     expect(summary.statusFilter).toBe("scheduled");
     expect(summary.payment.status).toBe("paid");
     expect(summary.payment.statusLabel).toBe("PlatÄƒ confirmatÄƒ");
-    expect(summary.payment.amountLabel).toMatch(/23\.10/);
+    expect(summary.payment.amountLabel).toMatch(/23[.,]10/);
   });
 
   it("uses the handoff labels for area text", () => {

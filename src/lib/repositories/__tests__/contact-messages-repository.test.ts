@@ -95,7 +95,7 @@ describe("ContactMessagesRepository.create", () => {
       senderEmail: "a@b.co",
       subject: "T",
       body: "B",
-      category: "billing" as never,
+      category: "not-a-category" as never,
     });
     expect(result.ok).toBe(false);
     if (!result.ok) expect(result.error.code).toBe("validation_error");

@@ -27,6 +27,15 @@ const nextConfig: NextConfig = {
       ...getConfiguredDevOrigins(),
     ]),
   ],
+  images: {
+    remotePatterns: [
+      {
+        protocol: "https",
+        hostname: "media.skysend.website",
+        pathname: "/releases/**",
+      },
+    ],
+  },
   poweredByHeader: false,
 };
 

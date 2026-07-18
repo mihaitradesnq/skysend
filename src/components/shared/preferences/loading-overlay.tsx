@@ -9,16 +9,6 @@ type LoadingOverlayProps = {
   theme: "dark" | "light";
 };
 
-/**
- * Branded full-screen overlay shown briefly while the language or theme is
- * being switched. The background follows the target theme so the transition
- * reads as the site moving from one palette to the other. Respects
- * `prefers-reduced-motion` (the provider never sets `active=true` in that
- * case, and this component additionally disables the pulse loop).
- *
- * Note: the brand mark + rotating copy is built nively in code rather than
- * decoded from an external video asset, so it stays crisp and theme-aware.
- */
 export function LoadingOverlay({ active, theme }: LoadingOverlayProps) {
   const { language } = useSettings();
 

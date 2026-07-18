@@ -1,19 +1,7 @@
 import { DEFAULT_PREFS, PREFS_STORAGE_KEY } from "@/lib/settings/types";
 import { APP_ROUTE_PREFIXES } from "@/lib/settings/theme-route";
 
-/**
- * Applies persisted preferences before React hydrates, avoiding a visible
- * theme or language flash. This module intentionally remains server-safe so
- * the root layout does not import it from a client component module.
- *
- * The marketing site (any pathname NOT under the app prefixes) is always
- * rendered dark, regardless of the persisted preference — that keeps the
- * landing presentation consistent and prevents a saved "light" preference
- * from bleaching the public site on first paint.
- */
 function buildAppRouteRegex(): string {
-  // Exact match OR prefix+"/" — so "/admin" matches but "/administration"
-  // doesn't. The script embeds this regex directly, so keep it minimal.
   const escaped = APP_ROUTE_PREFIXES.map((p) =>
     p.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"),
   ).join("|");

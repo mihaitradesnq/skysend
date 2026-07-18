@@ -1559,16 +1559,6 @@ export const parcelAssistantRuleSummary = {
     "Confidence is higher when packaging and contents tell a consistent story, and lower when the description is vague or too short.",
 } as const;
 
-/**
- * Deterministic, blocking clarification questions for ambiguous product
- * mentions (e.g. bare "iphone", "samsung", "laptop", "parfum", "vază
- * ceramica"). These run on every estimate path — including the offline
- * local fallback — so the UI always requires an answer + re-estimate
- * before the customer can confirm an estimate for a non-specifiable item.
- *
- * Returns the questions in priority order; the caller is expected to cap to
- * 3 to respect the existing `clarificationQuestions.slice(0, 3)` contract.
- */
 export function buildBlockingProductClarifications(
   input: ParcelAssistantInput,
 ): ParcelClarificationQuestion[] {
@@ -1581,14 +1571,11 @@ export function buildBlockingProductClarifications(
 
   const hasModelToken = /\b\d{1,2}\b|\b(pro|plus|ultra|mini|lite|air|max|se|titum|titanium)\b|\bno\.?\s*\d+/u.test(text);
 
-  // Phone models commonly use brand-letter + digits (s23, a54, m20) or
-  // "note 20" / "z flip"; the generic hasModelToken above misses them.
   const hasPhoneModelToken =
     /\b(s|a|m|z)\d{1,2}\b|\b(note\s*\d{1,2}|z\s*(flip|fold))\b|\bgalaxy\s+(s|a|m|z|note)\s*\d{1,2}/u.test(
       text,
     );
 
-  // Bare "iphone" / "ipnone" typos etc. — needs the exact model to estimate.
   if (/\b(iphone)\b/u.test(text) && !(hasModelToken || hasPhoneModelToken)) {
     questions.push({
       id: "clarify_iphone_model",
@@ -1612,7 +1599,6 @@ export function buildBlockingProductClarifications(
     });
   }
 
-  // Generic "samsung" / "telefon" / "galaxy" without a model token.
   if (
     /\b(samsung|galaxy|telefon|mobil)\b/u.test(text) &&
     !/\b(iphone)\b/u.test(text) &&
@@ -1631,7 +1617,6 @@ export function buildBlockingProductClarifications(
     });
   }
 
-  // Generic "laptop" without any model, diagonal or accessory detail.
   if (
     /\b(laptop|notebook|ultrabook)\b/u.test(text) &&
     !/\b(macbook|asus|lenovo|dell|hp|acer|msi|razer|thinkpad|vivobook|ideapad|inspiron|xps|surface|zenbook)\b/u.test(text) &&
@@ -1663,7 +1648,6 @@ export function buildBlockingProductClarifications(
     });
   }
 
-  // Cosmetic liquid without a clear volume/container.
   if (
     /\b(parfum|parfume|parfumuri|cosmetice|cosmetic|lotiune|loțiune|apa\s+de\s+toaleta|apa\s+de\s+parfum)\b/u.test(text) &&
     !/\b\d+\s*(ml|mililitri|litri|l)\b/u.test(text)
@@ -1701,7 +1685,6 @@ export function buildBlockingProductClarifications(
     });
   }
 
-  // Medications / pharmacy without clear temperature sensitivity.
   if (
     /\b(medicament|medicamente|medicinal|reteta|rețeta|farmaceutic|farmacia|pharmacy)\b/u.test(text) &&
     !/\b(ambient|frigider|refrigerat|congelator|temperatura|cold\s*chain|insulated)\b/u.test(text)
@@ -1724,10 +1707,6 @@ export function buildBlockingProductClarifications(
     });
   }
 
-  // Fragile objects without a clear material or protective packaging.
-  // Skip when a liquid volume is detected — liquid glass/plastic containers
-  // are already handled by the liquid path; the fragile question would be a
-  // low-value false positive for "o sticlă de apă de 2L".
   const hasLiquidVolume = parseLiquidVolumeLiters(text) !== null;
   const hasFragileObject =
     /\b(vaza|oglinda|ceramica|ceramic|sticla|sticlă|porțelan|portelan|cristal|crystal|pahare|pahar)\b/u.test(text);

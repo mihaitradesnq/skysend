@@ -15,6 +15,23 @@ vi.mock("@clerk/nextjs/server", () => ({
   auth: clerkMock.auth,
 }));
 
+vi.mock("next/headers", () => ({
+  headers: vi.fn(async () => new Headers()),
+}));
+
+vi.mock("@/lib/admin-auth", () => ({
+  requireAdminPanelUser: async () => {
+    const { userId } = await clerkMock.auth();
+    if (!userId) return { ok: false, status: 401, error: "Authentication required." };
+    const profile = [...store.rows.values()].find((row) => row.clerk_user_id === userId);
+    if (!profile) return { ok: false, status: 404, error: "Profile not found." };
+    if (profile.role !== "admin") {
+      return { ok: false, status: 403, error: "Admin role required." };
+    }
+    return { ok: true, clerkUserId: userId, profile };
+  },
+}));
+
 const adminMock = vi.hoisted(() => ({
   createAdminSupabaseClient: vi.fn(),
 }));

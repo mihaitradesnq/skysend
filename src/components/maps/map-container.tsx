@@ -381,6 +381,7 @@ export const MapContainer = memo(function MapContainer({
   lines = emptyMapLines,
   selectedPoint,
   onPointSelect,
+  onViewportSettled,
   overlayContent,
 }: MapContainerProps) {
   const mapNodeRef = useRef<HTMLDivElement | null>(null);
@@ -390,6 +391,7 @@ export const MapContainer = memo(function MapContainer({
   const activeOverlayIdsRef = useRef<string[]>([]);
   const activeLineIdsRef = useRef<string[]>([]);
   const clickHandlerRef = useRef(onPointSelect);
+  const viewportSettledHandlerRef = useRef(onViewportSettled);
   const initialCenterRef = useRef(center);
   const initialZoomRef = useRef(zoom);
   const hasAppliedFallbackStyleRef = useRef(false);
@@ -406,6 +408,10 @@ export const MapContainer = memo(function MapContainer({
   useEffect(() => {
     clickHandlerRef.current = onPointSelect;
   }, [onPointSelect]);
+
+  useEffect(() => {
+    viewportSettledHandlerRef.current = onViewportSettled;
+  }, [onViewportSettled]);
 
   useEffect(() => {
     let disposed = false;
@@ -481,8 +487,6 @@ export const MapContainer = memo(function MapContainer({
       activeOverlayIdsRef.current = [];
       activeLineIdsRef.current = [];
       syncDiagnostics(reason);
-      // Fallback to the theme-appropriate raster style so the light theme
-      // keeps its Apple-style paper basemap even on a degraded network.
       const fallbackTheme = document.documentElement.classList.contains("light")
         ? "light"
         : "dark";
@@ -530,11 +534,6 @@ export const MapContainer = memo(function MapContainer({
 
         maplibregl = maplibre as typeof import("maplibre-gl");
 
-        // Pick the right raster style for the active theme at mount time.
-        // We deliberately read the theme off `<html>` directly (the same way
-        // applyFallbackStyle does below) instead of pulling it from a React
-        // context — this keeps the initialization effect free of new
-        // dependencies and prevents re-mounts on theme changes.
         const initialTheme = document.documentElement.classList.contains("light")
           ? "light"
           : "dark";
@@ -604,6 +603,21 @@ export const MapContainer = memo(function MapContainer({
           clickHandlerRef.current?.({
             latitude: event.lngLat.lat,
             longitude: event.lngLat.lng,
+          });
+        });
+
+        map.on("moveend", (event) => {
+          if (!event.originalEvent) {
+            return;
+          }
+
+          const settledCenter = map.getCenter();
+          viewportSettledHandlerRef.current?.({
+            center: {
+              latitude: settledCenter.lat,
+              longitude: settledCenter.lng,
+            },
+            zoom: map.getZoom(),
           });
         });
 

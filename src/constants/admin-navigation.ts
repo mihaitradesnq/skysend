@@ -1,8 +1,11 @@
 import {
   BarChart3,
+  ClipboardCheck,
   LayoutDashboard,
+  Mail,
   Package2,
   Settings,
+  UserCog,
   TriangleAlert,
 } from "lucide-react";
 import type { AdminNavigationItem } from "@/types/admin-navigation";
@@ -30,11 +33,32 @@ export const adminNavigationItems: readonly AdminNavigationItem[] = [
     icon: TriangleAlert,
   },
   {
+    key: "parcel-evaluations",
+    label: "Evaluări colete",
+    href: "/admin/parcel-evaluations",
+    description: "Întrebări și profiluri confirmate pentru colete.",
+    icon: ClipboardCheck,
+  },
+  {
+    key: "site-messages",
+    label: "Mesaje site",
+    href: "/admin/site-messages",
+    description: "Inbox public și răspunsuri prin email.",
+    icon: Mail,
+  },
+  {
     key: "statistics",
     label: "Rapoarte",
     href: "/admin/statistics",
     description: "Indicatori operaționali și export CSV.",
     icon: BarChart3,
+  },
+  {
+    key: "access",
+    label: "Acces și roluri",
+    href: "/admin/access",
+    description: "Roluri interne, cereri temporare și securitate MFA.",
+    icon: UserCog,
   },
   {
     key: "settings",

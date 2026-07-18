@@ -1,20 +1,71 @@
 import type { Language } from "@/lib/settings/types";
 
-/**
- * Bilingual public-site copy. Long-form content (page bodies, step lists,
- * pricing plans, FAQ entries) is co-located here so the ro/en pairs are
- * easy to keep in sync and so page components stay focused on layout. The
- * `useSettings().language` value picks the active variant.
- */
 export type PublicCopy = {
-  // Public layout (header + footer are handled elsewhere via the dictionary).
   brand: {
     name: string;
     homeAria: string;
   };
 
-  // Landing page (src/app/(public)/page.tsx)
   home: {
+    story: {
+      railAria: string;
+      railLabels: string[];
+      progress: {
+        ariaLabel: string;
+        labels: [string, string, string, string, string, string];
+      };
+      backToTopAria: string;
+      hero: { title: string; message: string; scrollHint: string };
+      editorial: {
+        label: string;
+        headline: string;
+        lines: [string, string];
+      };
+      resilience: {
+        chapterLabel: string;
+        railAria: string;
+        items: {
+          id: "winter" | "sky" | "rain";
+          label: string;
+          message: string;
+          secondaryMessage: string;
+        }[];
+      };
+      explorer: {
+        eyebrow: string;
+        title: string;
+        body: string;
+        droneHotspot: string;
+        lockerHotspot: string;
+        back: string;
+        drone: { title: string; body: string; facts: string[] };
+        locker: {
+          title: string;
+          body: string;
+          facts: string[];
+          open: string;
+          close: string;
+        };
+      };
+      descent: {
+        eyebrow: string;
+        title: string;
+        body: string;
+        distance: string;
+      };
+      weather: {
+        eyebrow: string;
+        items: { label: string; title: string; body: string }[];
+      };
+      cta: {
+        chapterLabel: string;
+        message: string;
+        primary: string;
+        secondary: string;
+        partnersTitle: string;
+        partnersAria: string;
+      };
+    };
     hero: {
       eyebrow: string;
       title: string;
@@ -47,7 +98,6 @@ export type PublicCopy = {
     };
   };
 
-  // Pricing page
   pricing: {
     eyebrow: string;
     title: string;
@@ -75,8 +125,20 @@ export type PublicCopy = {
     scopeBody: string;
   };
 
-  // How it works
   howItWorks: {
+    story: {
+      eyebrow: string;
+      title: string;
+      intro: string;
+      scrollHint: string;
+      railAria: string;
+      distance: string;
+      scenes: { label: string; eyebrow: string; title: string; body: string }[];
+      finalTitle: string;
+      finalBody: string;
+      finalPrimary: string;
+      finalSecondary: string;
+    };
     heroEyebrow: string;
     heroTitle: string;
     heroBody: string;
@@ -129,7 +191,6 @@ export type PublicCopy = {
     finalSecondary: string;
   };
 
-  // Coverage
   coverage: {
     eyebrow: string;
     title: string;
@@ -138,7 +199,6 @@ export type PublicCopy = {
     pillars: { title: string; body: string }[];
   };
 
-  // Contact
   contact: {
     eyebrow: string;
     title: string;
@@ -147,7 +207,6 @@ export type PublicCopy = {
     pillars: { title: string; body: string }[];
   };
 
-  // FAQ
   faq: {
     eyebrow: string;
     title: string;
@@ -156,7 +215,6 @@ export type PublicCopy = {
     pillars: { title: string; body: string }[];
   };
 
-  // Footer
   footer: {
     about: string;
     navHeading: string;
@@ -173,6 +231,91 @@ export type PublicCopy = {
 const ro: PublicCopy = {
   brand: { name: "SkySend", homeAria: "Acasă SkySend" },
   home: {
+    story: {
+      railAria: "Progresul poveștii SkySend",
+      railLabels: ["Promisiune", "Sistem", "10 metri", "Ploaie", "Senin", "Ninsoare", "Start"],
+      progress: {
+        ariaLabel: "Progresul landing page-ului SkySend",
+        labels: ["Hero", "Editorial", "Iarnă", "Cer", "Ploaie", "Final"],
+      },
+      backToTopAria: "Înapoi la începutul paginii",
+      hero: {
+        title: "SkySend",
+        message: "Trimite colete rapid indiferent de trafic",
+        scrollHint: "Derulează pentru a porni zborul",
+      },
+      editorial: {
+        label: "Timpul tău, livrat",
+        headline: "Livrăm mai mult decât colete. Îți redăm timpul.",
+        lines: ["LIVRĂM MAI MULT DECÂT COLETE", "ÎȚI REDĂM TIMPUL"],
+      },
+      resilience: {
+        chapterLabel: "Construit pentru orice vreme",
+        railAria: "Progresul scenelor meteo",
+        items: [
+          {
+            id: "winter",
+            label: "Iarnă",
+            message: "Căldura rămâne înăuntru. Frigul rămâne afară.",
+            secondaryMessage: "Fiecare masă ajunge exact cum trebuie.",
+          },
+          {
+            id: "sky",
+            label: "Cer",
+            message: "Construit să rămână stabil când vremea nu este.",
+            secondaryMessage: "Pachetele medicale rămân protejate.",
+          },
+          {
+            id: "rain",
+            label: "Ploaie",
+            message: "IP68 între coletul tău și ploaie.",
+            secondaryMessage: "Uscat de la decolare la predare.",
+          },
+        ],
+      },
+      explorer: {
+        eyebrow: "Sistemul SkySend",
+        title: "O dronă. Un locker sigur.",
+        body: "Două componente, un singur flux controlat.",
+        droneHotspot: "Explorează drona",
+        lockerHotspot: "Explorează lockerul",
+        back: "Înapoi",
+        drone: {
+          title: "Rămâne deasupra.",
+          body: "Drona nu trebuie să aterizeze. Troliul poziționează lockerul, iar cursa rămâne vizibilă live.",
+          facts: ["Aproximativ 10 m", "Troliu controlat", "Tracking live"],
+        },
+        locker: {
+          title: "Protecție până la deschidere.",
+          body: "Lockerul coboară sigilat și se deschide numai în momentul predării.",
+          facts: ["Acces cu PIN", "Etanșat la ploaie", "Rece sau cald, după colet"],
+          open: "Deschide lockerul",
+          close: "Închide lockerul",
+        },
+      },
+      descent: {
+        eyebrow: "Fără aterizare",
+        title: "Drona rămâne sus. Lockerul vine la tine.",
+        body: "O coborâre verticală, controlată, până în zona sigură de predare.",
+        distance: "10 M",
+      },
+      weather: {
+        eyebrow: "Protejat în orice vreme",
+        items: [
+          { label: "Ploaie", title: "Sigilat pentru drum.", body: "Apa rămâne afară. Coletul rămâne protejat." },
+          { label: "Senin", title: "Temperatura potrivită.", body: "Conținutul sensibil își păstrează condițiile de transport." },
+          { label: "Ninsoare", title: "Închis până la PIN.", body: "Lockerul se deschide doar când predarea este confirmată." },
+        ],
+      },
+      cta: {
+        chapterLabel: "Prima ta livrare",
+        message: "De ce să aștepți zile când poate dura minute? Creează prima ta livrare și descoperă viitorul logisticii locale.",
+        primary: "Creează o livrare",
+        secondary: "Cum funcționează",
+        partnersTitle: "Creat pentru afacerile care știu că fiecare minut contează",
+        partnersAria: "Parteneri de livrare compatibili",
+      },
+    },
     hero: {
       eyebrow: "Livrare cu drona",
       title: "Trimite colete cu drona,",
@@ -331,6 +474,26 @@ const ro: PublicCopy = {
       "Structura rămâne simplă, ca tarifele să se simtă parte din produs, nu ca o broșură comercială separată.",
   },
   howItWorks: {
+    story: {
+      eyebrow: "Cum funcționează",
+      title: "Un colet. Șase momente clare.",
+      intro: "De la plecare până la lockerul închis la destinație.",
+      scrollHint: "Derulează pentru a urmări livrarea",
+      railAria: "Etapele livrării SkySend",
+      distance: "10 M",
+      scenes: [
+        { label: "Plecare", eyebrow: "01 · Plecare", title: "Sistemul pornește.", body: "Drona părăsește hub-ul și intră pe traseul verificat." },
+        { label: "Sosire", eyebrow: "02 · Sosire", title: "Ajunge deasupra punctului.", body: "Traseul se închide precis, fără contact cu solul." },
+        { label: "Coborâre", eyebrow: "03 · Coborâre", title: "Lockerul coboară.", body: "Troliul îl aduce vertical în zona sigură de predare." },
+        { label: "Preluare", eyebrow: "04 · Preluare", title: "PIN. Colet. Închis.", body: "Coletul intră, ușile se închid, iar lockerul urcă." },
+        { label: "Zbor", eyebrow: "05 · Zbor", title: "În mișcare, mereu vizibil.", body: "Expeditorul și destinatarul urmăresc aceeași cursă live." },
+        { label: "Livrare", eyebrow: "06 · Livrare", title: "Predat. Protejat. Confirmat.", body: "Lockerul se închide, iar livrarea rămâne în istoricul tău." },
+      ],
+      finalTitle: "Primul zbor începe aici.",
+      finalBody: "Spune-ne de unde pleacă și unde trebuie să ajungă.",
+      finalPrimary: "Creează o livrare",
+      finalSecondary: "Vezi tarifele",
+    },
     heroEyebrow: "Cum funcționează",
     heroTitle: "Cum funcționează SkySend",
     heroBody:
@@ -593,6 +756,91 @@ const ro: PublicCopy = {
 const en: PublicCopy = {
   brand: { name: "SkySend", homeAria: "SkySend home" },
   home: {
+    story: {
+      railAria: "SkySend story progress",
+      railLabels: ["Promise", "System", "10 metres", "Rain", "Clear", "Snow", "Start"],
+      progress: {
+        ariaLabel: "SkySend landing page progress",
+        labels: ["Hero", "Editorial", "Winter", "Sky", "Rain", "Final"],
+      },
+      backToTopAria: "Back to the top of the page",
+      hero: {
+        title: "SkySend",
+        message: "Send parcels fast, regardless of traffic.",
+        scrollHint: "Scroll to start the flight",
+      },
+      editorial: {
+        label: "Your time, delivered",
+        headline: "Delivering more than packages. We deliver time back to you.",
+        lines: ["DELIVERING MORE THAN PACKAGES", "WE DELIVER TIME BACK TO YOU"],
+      },
+      resilience: {
+        chapterLabel: "Built for every forecast",
+        railAria: "Weather scene progress",
+        items: [
+          {
+            id: "winter",
+            label: "Winter",
+            message: "The heat stays in. The cold stays out.",
+            secondaryMessage: "Every meal arrives just right.",
+          },
+          {
+            id: "sky",
+            label: "Sky",
+            message: "Built to stay steady when conditions aren’t.",
+            secondaryMessage: "Medical packages stay protected.",
+          },
+          {
+            id: "rain",
+            label: "Rain",
+            message: "IP68 between your parcel and the rain.",
+            secondaryMessage: "Dry from takeoff to handoff.",
+          },
+        ],
+      },
+      explorer: {
+        eyebrow: "The SkySend system",
+        title: "One drone. One secure locker.",
+        body: "Two components, one controlled flow.",
+        droneHotspot: "Explore the drone",
+        lockerHotspot: "Explore the locker",
+        back: "Go back",
+        drone: {
+          title: "It stays above.",
+          body: "The drone does not need to land. The winch positions the locker while the journey stays visible live.",
+          facts: ["About 10 m", "Controlled winch", "Live tracking"],
+        },
+        locker: {
+          title: "Protected until it opens.",
+          body: "The locker descends sealed and opens only at handoff.",
+          facts: ["PIN access", "Sealed against rain", "Kept cool or warm"],
+          open: "Open the locker",
+          close: "Close the locker",
+        },
+      },
+      descent: {
+        eyebrow: "No landing",
+        title: "The drone stays high. The locker comes to you.",
+        body: "A controlled vertical descent into the safe handoff zone.",
+        distance: "10 M",
+      },
+      weather: {
+        eyebrow: "Protected in any weather",
+        items: [
+          { label: "Rain", title: "Sealed for the journey.", body: "Water stays out. The parcel stays protected." },
+          { label: "Clear", title: "The right temperature.", body: "Sensitive contents keep their transport conditions." },
+          { label: "Snow", title: "Closed until the PIN.", body: "The locker opens only when handoff is confirmed." },
+        ],
+      },
+      cta: {
+        chapterLabel: "Your first delivery",
+        message: "Why wait days when it can take minutes? Create your first delivery and experience the future of local logistics.",
+        primary: "Create a delivery",
+        secondary: "How it works",
+        partnersTitle: "Built for the businesses that know every minute matters",
+        partnersAria: "Compatible delivery partners",
+      },
+    },
     hero: {
       eyebrow: "Drone delivery",
       title: "Send parcels by drone,",
@@ -752,6 +1000,26 @@ const en: PublicCopy = {
       "The structure stays simple, so the pricing feels like part of the product, not a separate commercial brochure.",
   },
   howItWorks: {
+    story: {
+      eyebrow: "How it works",
+      title: "One parcel. Six clear moments.",
+      intro: "From departure to a closed locker at the destination.",
+      scrollHint: "Scroll to follow the delivery",
+      railAria: "SkySend delivery stages",
+      distance: "10 M",
+      scenes: [
+        { label: "Departure", eyebrow: "01 · Departure", title: "The system starts.", body: "The drone leaves the hub and enters its verified route." },
+        { label: "Arrival", eyebrow: "02 · Arrival", title: "It reaches the point above.", body: "The route closes precisely, without touching the ground." },
+        { label: "Descent", eyebrow: "03 · Descent", title: "The locker comes down.", body: "The winch lowers it vertically into the safe handoff zone." },
+        { label: "Pickup", eyebrow: "04 · Pickup", title: "PIN. Parcel. Closed.", body: "The parcel goes in, the doors close and the locker rises." },
+        { label: "Flight", eyebrow: "05 · Flight", title: "Moving, always visible.", body: "Sender and recipient follow the same live journey." },
+        { label: "Delivery", eyebrow: "06 · Delivery", title: "Delivered. Protected. Confirmed.", body: "The locker closes and the delivery stays in your history." },
+      ],
+      finalTitle: "The first flight starts here.",
+      finalBody: "Tell us where it leaves from and where it needs to arrive.",
+      finalPrimary: "Create a delivery",
+      finalSecondary: "See pricing",
+    },
     heroEyebrow: "How it works",
     heroTitle: "How SkySend works",
     heroBody:

@@ -1,26 +1,32 @@
 import "server-only";
 
-import { auth, currentUser } from "@clerk/nextjs/server";
+import { auth } from "@clerk/nextjs/server";
+import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { isClerkConfigured } from "@/lib/clerk-config";
 import {
   canAccessAdminPanel,
   canAccessRoleRoute,
-  getDemoAdminRoleFromEmail,
   getInvalidRoleRedirectPath,
   getPostAuthRedirectPath,
-  getRoleFromClerkMetadata,
-  resolveUserRole,
 } from "@/lib/auth";
-import type { ClerkRoleMetadata, UserRole } from "@/types/roles";
+import { getStaffAccessConfig } from "@/lib/staff-access/config";
+import { verifyCloudflareAccessToken } from "@/lib/staff-access/cloudflare";
+import { getCurrentStaffAccess } from "@/lib/staff-access/server";
+import type { AccessKind } from "@/types/staff-access";
+import type { UserRole } from "@/types/roles";
 
 type UnauthorizedBehavior = "redirect_home" | "access_denied";
 
 export type ProtectedRouteContext = {
   userId: string;
+  profileId: string | null;
   role: UserRole | null;
-  roleSource: "database" | "clerk_metadata" | "fallback" | null;
+  roleSource: "database" | null;
   isRoleMismatch: boolean;
+  accessKind: AccessKind | null;
+  expiresAt: string | null;
+  isPermanentAdmin: boolean;
 };
 
 export type AdminRouteContext = ProtectedRouteContext & {
@@ -29,47 +35,28 @@ export type AdminRouteContext = ProtectedRouteContext & {
 
 function createAccessDeniedUrl(expectedRole: UserRole, currentRole?: UserRole | null) {
   const params = new URLSearchParams({ required: expectedRole });
-
-  if (currentRole) {
-    params.set("current", currentRole);
-  }
-
+  if (currentRole) params.set("current", currentRole);
   return `/access-denied?${params.toString()}`;
 }
 
 async function getAuthenticatedRoleContext(): Promise<ProtectedRouteContext> {
-  if (!isClerkConfigured()) {
-    redirect("/sign-in?auth=not-configured");
-  }
-
+  if (!isClerkConfigured()) redirect("/sign-in?auth=not-configured");
   const { userId, redirectToSignIn } = await auth();
+  if (!userId) return redirectToSignIn();
 
-  if (!userId) {
-    return redirectToSignIn();
-  }
-
-  const user = await currentUser();
-  const primaryEmail =
-    user?.emailAddresses.find(
-      (email) => email.id === user.primaryEmailAddressId,
-    )?.emailAddress ??
-    user?.emailAddresses[0]?.emailAddress ??
-    null;
-  const clerkRole = getRoleFromClerkMetadata(
-    (user?.publicMetadata ?? null) as ClerkRoleMetadata | null,
-    (user?.privateMetadata ?? null) as ClerkRoleMetadata | null,
+  const access = await getCurrentStaffAccess();
+  const strictMismatch = Boolean(
+    access?.integrationMismatch && getStaffAccessConfig().enforcement === "strict",
   );
-  const demoEmailRole = getDemoAdminRoleFromEmail(primaryEmail);
-  const resolution = resolveUserRole({
-    clerkRole,
-    fallbackRole: demoEmailRole ?? undefined,
-  });
-
   return {
     userId,
-    role: resolution.role,
-    roleSource: resolution.source,
-    isRoleMismatch: resolution.isMismatch,
+    profileId: access?.profileId ?? null,
+    role: strictMismatch ? null : access?.role ?? null,
+    roleSource: access ? "database" : null,
+    isRoleMismatch: strictMismatch,
+    accessKind: access?.accessKind ?? null,
+    expiresAt: access?.expiresAt ?? null,
+    isPermanentAdmin: Boolean(access?.isPermanentAdmin && !strictMismatch),
   };
 }
 
@@ -79,10 +66,12 @@ export async function requireAuthenticatedRoute() {
 
 export async function requireAdminRoute(): Promise<AdminRouteContext> {
   const context = await getAuthenticatedRoleContext();
-
+  const cloudflare = await verifyCloudflareAccessToken(
+    (await headers()).get("cf-access-jwt-assertion"),
+  );
   return {
     ...context,
-    canAccessAdmin: canAccessAdminPanel(context.role),
+    canAccessAdmin: cloudflare.ok && canAccessAdminPanel(context.role),
   };
 }
 
@@ -91,32 +80,15 @@ export async function requireRoleRoute(
   behavior: UnauthorizedBehavior = "redirect_home",
 ) {
   const context = await getAuthenticatedRoleContext();
-
-  if (context.role && canAccessRoleRoute(context.role, expectedRole)) {
-    return context;
-  }
-
-  if (behavior === "redirect_home" && context.role) {
-    redirect(getPostAuthRedirectPath(context.role));
-  }
-
-  if (!context.role) {
-    redirect(getInvalidRoleRedirectPath("no-role"));
-  }
-
+  if (context.role && canAccessRoleRoute(context.role, expectedRole)) return context;
+  if (behavior === "redirect_home" && context.role) redirect(getPostAuthRedirectPath(context.role));
+  if (!context.role) redirect(getInvalidRoleRedirectPath("no-role"));
   redirect(createAccessDeniedUrl(expectedRole, context.role));
 }
 
 export async function requireSupportOperatorRoute() {
   const context = await getAuthenticatedRoleContext();
-  const user = await currentUser();
-  const email = user?.emailAddresses.find(
-    (item) => item.id === user.primaryEmailAddressId,
-  )?.emailAddress ?? user?.emailAddresses[0]?.emailAddress;
-
-  if (email?.trim().toLowerCase() === "operator@skysend.com") {
-    return context;
-  }
+  if (context.role === "admin" || context.role === "operator") return context;
   if (context.role) redirect(getPostAuthRedirectPath(context.role));
   redirect(getInvalidRoleRedirectPath("no-role"));
 }

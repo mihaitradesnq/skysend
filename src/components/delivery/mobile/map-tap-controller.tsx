@@ -2,106 +2,120 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { CreateDeliveryAddressField } from "@/lib/create-delivery-addresses";
-import type { GeoPoint } from "@/types/service-area";
+import type { MapViewport } from "@/types/map";
 
-export type MapTapState = "pickup" | "dropoff" | "both";
+type ResolveFromMapCenter = (
+  field: CreateDeliveryAddressField,
+  viewport: MapViewport,
+  signal: AbortSignal,
+) => Promise<boolean>;
 
-function getInitialTapState(
-  pickupResolved: boolean,
-  dropoffResolved: boolean,
-): MapTapState {
-  if (pickupResolved && dropoffResolved) {
-    return "both";
-  }
-
-  if (pickupResolved) {
-    return "dropoff";
-  }
-
-  return "pickup";
-}
-
-export function useMapTapController({
-  pickupResolved,
-  dropoffResolved,
+export function useMapCenterSelectionController({
   onResolve,
 }: {
-  pickupResolved: boolean;
-  dropoffResolved: boolean;
-  onResolve: (
-    field: CreateDeliveryAddressField,
-    point: GeoPoint,
-  ) => Promise<boolean>;
+  onResolve: ResolveFromMapCenter;
 }) {
-  const [tapState, setTapState] = useState<MapTapState>(() =>
-    getInitialTapState(pickupResolved, dropoffResolved),
+  const [activeField, setActiveField] =
+    useState<CreateDeliveryAddressField | null>(null);
+  const [isResolving, setIsResolving] = useState(false);
+  const [feedback, setFeedback] = useState<string | null>(null);
+  const requestRef = useRef<{ id: number; controller: AbortController } | null>(
+    null,
   );
-  const [toast, setToast] = useState<string | null>(null);
-  const isResolvingRef = useRef(false);
 
-  const handleMapTap = useCallback(
-    async (point: GeoPoint) => {
-      if (isResolvingRef.current) {
+  const cancelPendingRequest = useCallback(() => {
+    requestRef.current?.controller.abort();
+    requestRef.current = null;
+    setIsResolving(false);
+  }, []);
+
+  const toggleField = useCallback(
+    (field: CreateDeliveryAddressField) => {
+      cancelPendingRequest();
+      setActiveField((current) => {
+        const nextField = current === field ? null : field;
+        setFeedback(
+          nextField
+            ? `Mută harta pentru adresa de ${nextField === "pickup" ? "ridicare" : "livrare"}.`
+            : null,
+        );
+        return nextField;
+      });
+    },
+    [cancelPendingRequest],
+  );
+
+  const stopSelection = useCallback(() => {
+    cancelPendingRequest();
+    setActiveField(null);
+    setFeedback(null);
+  }, [cancelPendingRequest]);
+
+  const handleViewportSettled = useCallback(
+    async (viewport: MapViewport) => {
+      if (!activeField) {
         return;
       }
 
-      const field: CreateDeliveryAddressField =
-        tapState === "dropoff" ? "dropoff" : "pickup";
-
-      isResolvingRef.current = true;
+      requestRef.current?.controller.abort();
+      const controller = new AbortController();
+      const requestId = (requestRef.current?.id ?? 0) + 1;
+      requestRef.current = { id: requestId, controller };
+      setIsResolving(true);
+      setFeedback("Actualizăm adresa din centrul hărții…");
 
       try {
-        const didResolve = await onResolve(field, point);
+        const didResolve = await onResolve(
+          activeField,
+          viewport,
+          controller.signal,
+        );
 
-        if (!didResolve) {
+        if (
+          controller.signal.aborted ||
+          requestRef.current?.id !== requestId
+        ) {
           return;
         }
 
-        setTapState((current) => {
-          if (current === "pickup") {
-            return "dropoff";
-          }
+        setFeedback(
+          didResolve
+            ? `Adresa de ${activeField === "pickup" ? "ridicare" : "livrare"} a fost actualizată.`
+            : "Nu am putut identifica o adresă sigură în acel punct.",
+        );
+      } catch {
+        if (
+          controller.signal.aborted ||
+          requestRef.current?.id !== requestId
+        ) {
+          return;
+        }
 
-          if (current === "dropoff") {
-            return "both";
-          }
-
-          return "dropoff";
-        });
+        setFeedback("Adresa nu a putut fi actualizată. Încearcă o poziție apropiată.");
       } finally {
-        isResolvingRef.current = false;
+        if (requestRef.current?.id === requestId) {
+          requestRef.current = null;
+          setIsResolving(false);
+        }
       }
     },
-    [onResolve, tapState],
+    [activeField, onResolve],
   );
 
-  useEffect(() => {
-    const message =
-      tapState === "pickup"
-        ? "Tap pentru a seta adresa de ridicare"
-        : tapState === "dropoff"
-          ? "Acum tap pentru adresa de livrare"
-          : null;
+  useEffect(
+    () => () => {
+      requestRef.current?.controller.abort();
+      requestRef.current = null;
+    },
+    [],
+  );
 
-    let hideTimeoutId: number | undefined;
-    const showTimeoutId = window.setTimeout(() => {
-      setToast(message);
-
-      if (message) {
-        hideTimeoutId = window.setTimeout(() => setToast(null), 2000);
-      }
-    }, 0);
-
-    return () => {
-      window.clearTimeout(showTimeoutId);
-
-      if (hideTimeoutId !== undefined) {
-        window.clearTimeout(hideTimeoutId);
-      }
-    };
-  }, [tapState]);
-
-  const isPlacing = tapState !== "both";
-
-  return { tapState, handleMapTap, toast, isPlacing };
+  return {
+    activeField,
+    feedback,
+    isResolving,
+    toggleField,
+    stopSelection,
+    handleViewportSettled,
+  };
 }

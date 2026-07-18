@@ -19,12 +19,6 @@ const dashboardRoles: readonly DashboardRole[] = [
   "operator",
 ];
 
-const demoAdminEmailRoles: Readonly<Record<string, UserRole>> = {
-  "admin@skysend.com": "admin",
-  "operator@skysend.com": "operator",
-  "suport@skysend.com": "suport",
-};
-
 export function isUserRole(value: unknown): value is UserRole {
   return typeof value === "string" && userRoles.includes(value as UserRole);
 }
@@ -45,14 +39,6 @@ export function getRoleFromClerkMetadata(
   }
 
   return isUserRole(publicMetadata?.role) ? publicMetadata.role : null;
-}
-
-export function getDemoAdminRoleFromEmail(email?: string | null) {
-  if (process.env.NODE_ENV === "production" || !email) {
-    return null;
-  }
-
-  return demoAdminEmailRoles[email.trim().toLowerCase()] ?? null;
 }
 
 export function isDevelopmentRoleFallbackEnabled() {
@@ -100,7 +86,12 @@ export function canAccessRoleRoute(
   currentRole: UserRole | null | undefined,
   targetRole: UserRole,
 ) {
-  return currentRole === targetRole;
+  if (!currentRole) return false;
+  if (currentRole === "admin") return true;
+  if (currentRole === "operator") {
+    return targetRole === "operator" || targetRole === "client";
+  }
+  return currentRole === "client" && targetRole === "client";
 }
 
 export function resolveUserRole({

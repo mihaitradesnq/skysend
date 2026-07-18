@@ -5,14 +5,6 @@ import { CurrencySwitcher } from "@/components/shared/preferences/currency-switc
 import { ThemeToggle } from "@/components/shared/preferences/theme-toggle";
 import { useSettings } from "@/lib/settings/settings-context";
 
-/**
- * Shared preferences panel — language and currency controls always grouped
- * together, with an optional theme toggle. The theme toggle is intentionally
- * gated behind `showTheme` so the public marketing site can expose language +
- * currency in its header menu while keeping the dark/light switch exclusive to
- * the in-app settings page. This avoids duplicating the controls and keeps a
- * single source of truth for each preference.
- */
 export function PreferencesControls({
   showCurrency = true,
   showTheme = true,

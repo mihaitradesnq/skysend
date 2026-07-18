@@ -4,9 +4,16 @@ import { useRef, useState, type FormEvent } from "react";
 import { Send } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { contactMessageCategoryOptions } from "@/lib/admin-contact-messages";
 import { cn } from "@/lib/utils";
 import type { ContactMessageCategory } from "@/types/admin-contact";
+
+const contactMessageCategoryOptions: Array<[ContactMessageCategory, string]> = [
+  ["support", "Suport"],
+  ["commercial", "Comercial"],
+  ["billing", "Facturare"],
+  ["technical", "Tehnic"],
+  ["other", "Altceva"],
+];
 
 type FormState = {
   email: string;
@@ -141,7 +148,7 @@ export function ContactMessageForm() {
       setFeedback({
         tone: "success",
         message:
-          "Mesajul a fost salvat în baza de date. Îl vei vedea în Panou Administrator > Mesaje clienți.",
+          "Mesajul a fost trimis echipei SkySend. Vei primi răspunsul pe email.",
       });
       lastSubmissionRef.current = {
         signature: submissionSignature,
@@ -242,8 +249,7 @@ export function ContactMessageForm() {
           {isSubmitting ? "Se salveaza..." : "Trimite mesajul"}
         </Button>
         <p className="text-xs leading-5 text-muted-foreground">
-          Mesajele sunt salvate în baza de date SkySend și apar în
-          Panou Administrator &gt; Mesaje clienți. Nu se trimite email automat.
+          Răspunsul echipei va veni pe adresa de email completată mai sus.
         </p>
       </div>
     </form>

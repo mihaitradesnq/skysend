@@ -203,7 +203,7 @@ export function mapOrderSummary(
   };
 }
 
-function mapDbPaymentStatusToCreated(
+export function mapDbPaymentStatusToCreated(
   status: DbPaymentStatus,
 ): CreatedDeliveryPaymentStatus {
   switch (status) {

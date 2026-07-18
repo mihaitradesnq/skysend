@@ -347,15 +347,10 @@ openRouter.estimateParcelWithOpenRouter = async () => mockOpenRouterEstimate();
 process.env.AI_PROVIDER = "openrouter";
 process.env.OPENROUTER_API_KEY = "test-openrouter-key";
 
-// env.server.ts declares required keys; the Tavily module transitively
-// imports it. Provide stand-ins so the offline regression never reads real
-// secrets and never fails the `req()` guard.
 process.env.CLERK_SECRET_KEY = "test-clerk-secret";
 process.env.SUPABASE_SERVICE_ROLE_KEY = "test-supabase-service-role";
 process.env.STRIPE_SECRET_KEY = "test-stripe-secret";
 
-// Tavily mock: the provider captures runProductLookupForEstimate at load time,
-// so install a single dispatcher whose behavior we toggle per test below.
 const tavily = loadSource("src/lib/ai/tavily-product-lookup.ts");
 const cannedIphoneResult = {
   title: "Apple iPhone 14 Pro Max specs",
@@ -394,8 +389,6 @@ tavily.runProductLookupForEstimate = async () => {
       results: tavilyStack.mockResults,
     };
   }
-  // "auto" / unset: behave as if no candidate query was identified so the
-  // existing offline regression never makes a real network call.
   return {
     trace: {
       queries: [],
@@ -408,7 +401,6 @@ tavily.runProductLookupForEstimate = async () => {
   };
 };
 
-// Direct unit tests for the new blocking-clarification function.
 const blockingIphone = buildBlockingProductClarifications(assistantInput("iphone"));
 assert(
   blockingIphone.some(
@@ -469,7 +461,6 @@ assert(
   `"vaza ceramica" without packaging detail should block on fragile packaging, got ${JSON.stringify(blockingVase.map((q) => q.id))}`,
 );
 
-// Direct unit tests for Tavily query candidate detection (real function).
 const detect = tavily.detectProductLookupCandidates;
 assert(
   detect("iPhone 14 Pro Max", []).some((q) => /iphone/i.test(q)),
@@ -770,9 +761,7 @@ assert(
   `overweight validation should mention fleet limit, got: ${overweightValidation.weightMessage}`,
 );
 
-// --- Tavily product-lookup integration ---
 
-// iPhone 14 Pro Max (model known → no blocking) with mocked web lookup.
 tavilyStack.mode = "mock";
 tavilyStack.mockResults = [cannedIphoneResult];
 tavilyStack.mockQueries = ["iphone 14 pro max"];
@@ -807,7 +796,6 @@ assert(
   "a detected item should carry web source evidence after lookup",
 );
 
-// Tavily unavailable (no key) → lookup skipped, local fallback, no crash.
 tavilyStack.mode = "nokey";
 const tavilyUnavailable = await estimateParcelForDispatch(
   estimatorRequest("iPhone 14 Pro Max in cutie originala"),
@@ -829,8 +817,6 @@ assert(
   "no item should carry web evidence when Tavily is unavailable",
 );
 
-// Cumulative clarification: bare "iphone" blocks; after answering the model,
-// the re-estimate should not block and should still produce a realistic weight.
 tavilyStack.mode = "auto";
 const bareIphone = await estimateParcelForDispatch(estimatorRequest("iphone"));
 assert(
@@ -869,7 +855,6 @@ assert(
   "clarified iPhone estimate should populate lookup trace via mock",
 );
 
-// Reset Tavily mock to the safe no-op default for any future runs.
 tavilyStack.mode = "auto";
 
 console.log("Parcel estimation regression checks passed.");

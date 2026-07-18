@@ -1,5 +1,3 @@
--- A single, account-aware support hub.  Conversations are the canonical
--- transcript for both the AI assistant and human support tickets.
 CREATE TABLE assistant_conversations (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   profile_id UUID REFERENCES profiles(id) ON DELETE CASCADE,
@@ -67,8 +65,6 @@ CREATE TRIGGER set_timestamp_support_tickets
   BEFORE UPDATE ON support_tickets
   FOR EACH ROW EXECUTE FUNCTION trigger_set_timestamp();
 
--- RLS stays useful for any future browser-side access.  Server routes use the
--- service key only after Clerk role checks, never from the client.
 ALTER TABLE assistant_conversations ENABLE ROW LEVEL SECURITY;
 ALTER TABLE assistant_messages ENABLE ROW LEVEL SECURITY;
 ALTER TABLE support_tickets ENABLE ROW LEVEL SECURITY;

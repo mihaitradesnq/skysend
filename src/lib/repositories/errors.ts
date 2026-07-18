@@ -4,17 +4,17 @@ import { RepositoryError, type RepositoryErrorCode } from "@/lib/repositories/ty
 
 const POSTGRES_PERMISSION_CODES = new Set(["42501"]);
 const POSTGRES_VALIDATION_CODES = new Set([
-  "22P02", // invalid_text_representation
-  "23502", // not_null_violation
-  "23503", // foreign_key_violation
-  "23505", // unique_violation
-  "23514", // check_violation
-  "23000", // integrity_constraint_violation (umbrella)
+  "22P02",
+  "23502",
+  "23503",
+  "23505",
+  "23514",
+  "23000",
 ]);
 const POSTGREST_NOT_FOUND_CODES = new Set([
-  "PGRST116", // requested single row, 0 returned
-  "PGRST106", // schema not found
-  "PGRST205", // table not found in schema cache
+  "PGRST116",
+  "PGRST106",
+  "PGRST205",
 ]);
 
 const POSTGREST_PERMISSION_CODES = new Set(["PGRST301", "PGRST302"]);

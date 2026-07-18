@@ -6,7 +6,9 @@ export type AdminSectionKey =
   | "parcel-evaluations"
   | "failed-orders"
   | "contact-messages"
+  | "site-messages"
   | "statistics"
+  | "access"
   | "settings";
 
 export type AdminNavigationItem = {

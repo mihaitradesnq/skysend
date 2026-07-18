@@ -172,14 +172,14 @@ export function AdminOrdersView({ initialOrders }: AdminOrdersViewProps) {
         );
       });
     } catch {
-      // Network / parse failure — keep the SSR-loaded orders rather than
-      // silently wiping them. A real error would surface through the save
-      // handler feedback.
     }
   }, []);
 
   useEffect(() => {
-    void refreshOrdersFromDB();
+    const refreshTimer = window.setTimeout(() => {
+      void refreshOrdersFromDB();
+    }, 0);
+    return () => window.clearTimeout(refreshTimer);
   }, [refreshOrdersFromDB]);
 
   const filteredOrders = useMemo(() => {

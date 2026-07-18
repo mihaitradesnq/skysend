@@ -1,7 +1,4 @@
 :root {
-  /* Light theme — clean, modern off-white palette that preserves the SkySend
-     identity (primary cyan stays). This is the default :root; the dark
-     palette lives under html.dark below. */
   --brand-ink: #0b1220;
   --brand-steel: #586672;
   --brand-sky: #20e7d5;
@@ -29,10 +26,6 @@
   --border: #c8d3dd;
   --input: #c8d3dd;
   --ring: rgba(32, 231, 213, 0.32);
-  /* Card outline — stronger than the standard `--border` so elevated cards
-     (Sections, Settings, Panels) read crisply against the off-white surface.
-     Keeps the brand-cyan tone so the Apple-style light theme still feels
-     like SkySend, just with a sharper edge. */
   --card-border: #b8c5d2;
   --card-border-strong: #a5b4c4;
   --scrollbar-thumb: rgba(15, 23, 42, 0.22);
@@ -85,7 +78,7 @@
   --safe-area-bottom: env(safe-area-inset-bottom, 0px);
   --safe-area-left: env(safe-area-inset-left, 0px);
   --safe-area-right: env(safe-area-inset-right, 0px);
-  --bottom-nav-height: 64px;
+  --bottom-nav-height: 4.75rem;
   --bottom-nav-safe: calc(var(--bottom-nav-height) + var(--safe-area-bottom));
   --touch-target-min: 44px;
   --mobile-panel-radius: 20px;
@@ -93,7 +86,6 @@
   color-scheme: light;
 }
 
-/* Dark theme — the original SkySend palette, applied when html has .dark. */
 html.dark {
   --brand-ink: #f4f8fb;
   --brand-steel: #8ea3b3;
@@ -152,10 +144,6 @@ html.dark body {
     linear-gradient(180deg, #071017 0%, var(--background) 42rem);
 }
 
-/* Apple-style light theme refinements — cards need a slightly heavier edge
-   and a warmer shadow against the off-white surface so they don't look like
-   they're floating in a void. Same tokens are shared with the dark theme
-   but the values are tuned for `html.light`. */
 html.light body {
   background:
     radial-gradient(circle at 20% 0%, rgba(32, 231, 213, 0.10), transparent 28rem),
@@ -168,9 +156,6 @@ html:not(.dark) body {
     linear-gradient(180deg, #eef4f8 0%, var(--background) 42rem);
 }
 
-/* Subtle, opt-in theme transition. The settings provider toggles
-   [data-theme-transition] on <body> only around an active switch so we never
-   animate on initial load. */
 body[data-theme-transition] {
   transition: background-color 350ms ease, color 350ms ease, border-color 350ms ease;
 }
@@ -182,11 +167,6 @@ body[data-theme-transition] *::after {
   transition-timing-function: ease;
 }
 
-/* Light theme — sharper card outlines + warmer shadow so elevated surfaces
-   sit clearly on the off-white background. Applied only under html.light so
-   the dark theme's subtler edges stay untouched. Targets the shared card
-   primitives (Card, SectionCard, secondary panels) without re-styling every
-   component individually. */
 html.light [data-slot="card"],
 html.light [data-slot="card"] {
   border-color: var(--card-border);
@@ -196,8 +176,6 @@ html.light [data-slot="card"] {
 }
 
 html.light .rounded-\[calc\(var\(--ui-radius-card\)\)\][class*="border"]:not([data-slot="card"]) {
-  /* Best-effort uplift for SectionCard/panel wrappers that use the rounded
-     card radius directly rather than the Card data-slot. */
   border-color: var(--card-border);
 }
 
@@ -206,18 +184,10 @@ html.light [data-slot="card"][class*="hover:border"] {
   border-color: var(--card-border-strong);
 }
 
-/* Map surface in light theme — a crisper edge and lighter control chrome so
-   the Apple-style basemap blends into the off-white card rather than the
-   dark-glass controls that the dark theme uses. */
 html.light .map-surface {
   border-color: var(--card-border);
 }
 
-/* Apple-style light map. Light theme uses its own CARTO Light All basemap
-   (see getFallbackMapStyleForTheme in constants/map.ts), so no CSS invert is
-   needed — the dark-theme canvas filter in globals.css already stays out
-   of the way under html.light via the rule below. Keeping a near-identity
-   filter just trims a hair of contrast to match the off-white cards. */
 html.light .map-surface--premium .maplibregl-canvas,
 html.light .map-surface:not(.map-surface--premium) .maplibregl-canvas {
   filter: contrast(1.02);

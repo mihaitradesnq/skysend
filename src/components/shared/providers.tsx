@@ -10,13 +10,6 @@ import { SettingsProvider } from "@/lib/settings/settings-context";
 import { ToastProvider } from "@/components/shared/toast-provider";
 import { SkySendAssistant } from "@/components/assistant/skysend-assistant";
 
-/**
- * Single composition root for the application's client-side providers.
- *
- * Mounted once from the root layout. Keeps Clerk auth, the profile sync
- * context, user preferences (theme / language / currency) and the toast
- * surface in one place so individual routes never re-compose them.
- */
 export function Providers({ children }: { children: ReactNode }) {
   const clerkEnabled = isClerkFrontendConfigured();
 

@@ -24,7 +24,15 @@ export async function GET() {
   const profiles = new ProfilesRepository(supabase);
   const profileResult = await profiles.getByClerkUserId(userId);
 
-  if (!profileResult.ok || !profileResult.data) {
+  if (!profileResult.ok) {
+    console.error("[client/orders] profile lookup failed:", profileResult.error);
+    return NextResponse.json(
+      { error: profileResult.error.message },
+      { status: 502 },
+    );
+  }
+
+  if (!profileResult.data) {
     return NextResponse.json({ error: "Profile not found." }, { status: 404 });
   }
 

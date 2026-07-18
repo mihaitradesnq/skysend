@@ -53,7 +53,6 @@ describe("POST /api/contact-messages", () => {
     const body = await response.json();
     expect(body.ok).toBe(true);
     expect(body.message).toMatchObject({
-      senderEmail: "ana@example.com",
       subject: "Întrebare",
       category: "support",
       status: "new",
@@ -88,7 +87,7 @@ describe("POST /api/contact-messages", () => {
 
     expect(response.status).toBe(400);
     const body = await response.json();
-    expect(body.error).toBe("invalid_email");
+    expect(body.error).toBe("validation_failed");
     expect(store.contactMessageRows.size).toBe(0);
   });
 
@@ -102,7 +101,7 @@ describe("POST /api/contact-messages", () => {
 
     expect(response.status).toBe(400);
     const body = await response.json();
-    expect(body.error).toBe("missing_subject");
+    expect(body.error).toBe("validation_failed");
     expect(store.contactMessageRows.size).toBe(0);
   });
 

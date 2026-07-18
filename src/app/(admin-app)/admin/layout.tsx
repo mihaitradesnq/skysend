@@ -14,5 +14,5 @@ export default async function AdminAppLayout({
     return <AdminRestrictedAccessState currentRole={context.role} />;
   }
 
-  return <AdminShell>{children}</AdminShell>;
+  return <AdminShell canManageStaffAccess={context.isPermanentAdmin}>{children}</AdminShell>;
 }

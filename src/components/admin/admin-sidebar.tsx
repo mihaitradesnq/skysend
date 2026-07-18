@@ -1,13 +1,14 @@
 "use client";
 
 import Link from "next/link";
-import { ArrowUpRight } from "lucide-react";
+import { ArrowUpRight, ShieldCheck, UserRound, Wrench } from "lucide-react";
 import { adminNavigationItems } from "@/constants/admin-navigation";
 import { BrandMark } from "@/components/shared/brand-mark";
 import { cn } from "@/lib/utils";
 
 type AdminSidebarProps = {
   currentPath: string;
+  canManageStaffAccess: boolean;
   onNavigate?: () => void;
 };
 
@@ -26,7 +27,12 @@ function isActiveAdminItem(currentPath: string, href: string) {
   return currentPath === href || currentPath.startsWith(`${href}/`);
 }
 
-export function AdminSidebar({ currentPath, onNavigate }: AdminSidebarProps) {
+export function AdminSidebar({ currentPath, canManageStaffAccess, onNavigate }: AdminSidebarProps) {
+  const workspaces = [
+    { label: "Spațiu admin", href: "/admin", icon: ShieldCheck },
+    { label: "Spațiu operator", href: "/operator", icon: Wrench },
+    { label: "Spațiu client", href: "/client", icon: UserRound },
+  ] as const;
   return (
     <aside className="flex h-full min-h-0 flex-col border-r border-border/70 bg-sidebar/95">
       <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto px-3 py-4">
@@ -52,7 +58,7 @@ export function AdminSidebar({ currentPath, onNavigate }: AdminSidebarProps) {
         </div>
 
         <nav aria-label="Navigație administrator" className="grid gap-1.5">
-          {adminNavigationItems.map((item) => {
+          {adminNavigationItems.filter((item) => item.key !== "access" || canManageStaffAccess).map((item) => {
             const Icon = item.icon;
             const isActive = isActiveAdminItem(currentPath, item.href);
 
@@ -94,7 +100,20 @@ export function AdminSidebar({ currentPath, onNavigate }: AdminSidebarProps) {
           })}
         </nav>
 
-        <div className="mt-auto rounded-[calc(var(--radius)+0.25rem)] border border-border/70 bg-secondary/35 p-2.5">
+        <div className="mt-auto grid gap-1.5">
+          <p className="px-2 text-[0.68rem] font-semibold uppercase tracking-[0.14em] text-muted-foreground">Spații de lucru</p>
+          {workspaces.map((workspace) => {
+            const Icon = workspace.icon;
+            const active = currentPath.startsWith(workspace.href);
+            return (
+              <Link key={workspace.href} href={workspace.href} onClick={onNavigate} className={cn("flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm", active ? "bg-card text-foreground" : "text-muted-foreground hover:bg-secondary hover:text-foreground")}>
+                <Icon className="size-4" />{workspace.label}
+              </Link>
+            );
+          })}
+        </div>
+
+        <div className="rounded-[calc(var(--radius)+0.25rem)] border border-border/70 bg-secondary/35 p-2.5">
           <Link
             href="/"
             onClick={onNavigate}

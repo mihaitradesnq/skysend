@@ -14,31 +14,28 @@ import { cn } from "@/lib/utils";
 
 type PublicNavbarProps = {
   overlay?: boolean;
+  hideOnScroll?: boolean;
 };
 
-/**
- * Returns a stable per-link min-width (in `ch` units) derived from the longest
- * of the RO/EN labels for a translation key. Sized to the longer label so the
- * box never shrinks below its widest language variant — switching language
- * only re-centers the text inside a fixed-width box, so the desktop nav never
- * shifts. `1ch` approximates the average glyph width for the active font.
- */
 function stableMinWidthCh(key: string): string {
   const roLabel = dictionaries.ro[key] ?? "";
   const enLabel = dictionaries.en[key] ?? "";
   const longest = Math.max(roLabel.length, enLabel.length);
-  // 1.2× buffer covers proportional glyphs (m/w) and rounded to whole ch.
   return `${Math.ceil(longest * 1.2)}ch`;
 }
 
-export function PublicNavbar({ overlay = false }: PublicNavbarProps) {
+export function PublicNavbar({
+  overlay = false,
+  hideOnScroll = false,
+}: PublicNavbarProps) {
   const [isOpen, setIsOpen] = useState(false);
   const { t } = useSettings();
 
   const [scrolled, setScrolled] = useState(false);
+  const [navHidden, setNavHidden] = useState(false);
   const pathname = usePathname();
-  const [openedAtPathname, setOpenedAtPathname] = useState(pathname);
   const headerRef = useRef<HTMLElement>(null);
+  const lastScrollYRef = useRef(0);
 
   const opaque = overlay ? scrolled || isOpen : true;
   const transparent = !opaque;
@@ -91,6 +88,36 @@ export function PublicNavbar({ overlay = false }: PublicNavbarProps) {
   }, [overlay]);
 
   useEffect(() => {
+    lastScrollYRef.current = window.scrollY;
+    if (!hideOnScroll || isOpen) {
+      return;
+    }
+
+    let frame = 0;
+    const updateDirection = () => {
+      frame = 0;
+      const currentY = Math.max(0, window.scrollY);
+      const delta = currentY - lastScrollYRef.current;
+
+      if (delta < -0.5) {
+        setNavHidden(false);
+      } else if (delta > 5 && currentY > 96) {
+        setNavHidden(true);
+      }
+      lastScrollYRef.current = currentY;
+    };
+    const handleScrollDirection = () => {
+      if (!frame) frame = window.requestAnimationFrame(updateDirection);
+    };
+
+    window.addEventListener("scroll", handleScrollDirection, { passive: true });
+    return () => {
+      window.cancelAnimationFrame(frame);
+      window.removeEventListener("scroll", handleScrollDirection);
+    };
+  }, [hideOnScroll, isOpen]);
+
+  useEffect(() => {
     if (!isOpen) return;
     const handlePointerDown = (e: PointerEvent) => {
       if (headerRef.current && !headerRef.current.contains(e.target as Node)) {
@@ -101,16 +128,11 @@ export function PublicNavbar({ overlay = false }: PublicNavbarProps) {
     return () => document.removeEventListener("pointerdown", handlePointerDown);
   }, [isOpen]);
 
-  if (isOpen && pathname !== openedAtPathname) {
-    setOpenedAtPathname(pathname);
-    setIsOpen(false);
-  }
-
   return (
     <header
       ref={headerRef}
       className={cn(
-        "fixed inset-x-0 top-0 z-50 border-b pt-[env(safe-area-inset-top)] transition-[background-color,border-color,backdrop-filter,color] duration-300 ease-out",
+        "fixed inset-x-0 top-0 z-50 border-b pt-[env(safe-area-inset-top)] transition-[background-color,border-color,backdrop-filter,color,transform] duration-200 ease-out",
         transparent
           ? "text-white [text-shadow:0_1px_4px_rgba(0,0,0,0.4)]"
           : "text-foreground",
@@ -120,16 +142,18 @@ export function PublicNavbar({ overlay = false }: PublicNavbarProps) {
         borderColor: navBorder,
         backdropFilter: `blur(${navBlur}px)`,
         WebkitBackdropFilter: `blur(${navBlur}px)`,
+        transform:
+          hideOnScroll && navHidden && !isOpen
+            ? "translate3d(0, -105%, 0)"
+            : "translate3d(0, 0, 0)",
       }}
     >
       <div className="app-container">
-        {/* Navbar row: 56px mobile, 64px desktop */}
         <div className="flex h-14 min-w-0 items-center justify-between gap-4 xl:h-16 xl:gap-6">
           <Link href="/" aria-label={t("brand.homeAria")} className="min-w-0 shrink-0">
             <BrandMark compact />
           </Link>
 
-          {/* Desktop nav links */}
           <nav
             aria-label={t("nav.mainAria")}
             className="hidden min-w-0 items-center gap-1 xl:flex"
@@ -153,7 +177,6 @@ export function PublicNavbar({ overlay = false }: PublicNavbarProps) {
             ))}
           </nav>
 
-          {/* Desktop auth controls */}
           <div
             className={cn(
               "hidden shrink-0 items-center gap-2 xl:flex",
@@ -169,6 +192,7 @@ export function PublicNavbar({ overlay = false }: PublicNavbarProps) {
               style={{ minWidth: stableMinWidthCh("nav.app") }}
               className={cn(
                 "public-app-button justify-center text-center transition-colors duration-300",
+                pathname === "/" && "landing-app-breathe",
                 transparent &&
                   "border-white/24 bg-white/8 text-white backdrop-blur-md hover:bg-white/14 hover:text-white",
               )}
@@ -177,7 +201,6 @@ export function PublicNavbar({ overlay = false }: PublicNavbarProps) {
             </Button>
           </div>
 
-          {/* Hamburger button — CSS 3-lines → X animation */}
           <Button
             type="button"
             variant="ghost"
@@ -188,7 +211,6 @@ export function PublicNavbar({ overlay = false }: PublicNavbarProps) {
             aria-label={isOpen ? t("nav.closeMenu") : t("nav.openMenu")}
             onClick={() => setIsOpen((v) => !v)}
           >
-            {/* 3 bars that animate to X */}
             <span
               aria-hidden="true"
               className="relative flex size-6 flex-col items-center justify-center gap-[5px]"
@@ -216,7 +238,6 @@ export function PublicNavbar({ overlay = false }: PublicNavbarProps) {
         </div>
       </div>
 
-      {/* Mobile menu — slide-down animation */}
       <AnimatePresence>
         {isOpen && (
           <m.div
@@ -232,7 +253,6 @@ export function PublicNavbar({ overlay = false }: PublicNavbarProps) {
               className="flex flex-col gap-2"
               style={{ paddingBottom: "max(1.25rem, env(safe-area-inset-bottom, 1.25rem))" }}
             >
-              {/* Nav links */}
               <nav aria-label={t("nav.mobileAria")} className="grid gap-1">
                 {publicNavigation.map((item) => (
                   <Link
@@ -252,13 +272,15 @@ export function PublicNavbar({ overlay = false }: PublicNavbarProps) {
                 ))}
               </nav>
 
-              {/* Auth + preferences — visually separated */}
               <div className="grid gap-2 border-t border-border/60 pt-2">
                 <HeaderAccount mobile onAction={() => setIsOpen(false)} />
                 <Button
                   asChild
                   variant="outline"
-                  className="public-app-button h-11 w-full justify-center rounded-2xl"
+                  className={cn(
+                    "public-app-button h-11 w-full justify-center rounded-2xl",
+                    pathname === "/" && "landing-app-breathe",
+                  )}
                 >
                   <Link
                     href="/client/create-delivery"

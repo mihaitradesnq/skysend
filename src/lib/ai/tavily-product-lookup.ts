@@ -8,18 +8,6 @@ import type {
 } from "@/types/parcel-intelligence";
 import type { ParcelEstimatorRequest } from "@/types/parcel-estimator";
 
-/**
- * Server-only product-lookup provider backed by the Tavily Search API.
- *
- * This is a *non-authoritative* enrichment step in the hybrid parcel pipeline:
- * it produces web evidence (titles, urls, snippets) used as LLM context and as
- * admin-visible provenance. It is NEVER a weight source — declared/explicit
- * weights and physical rules remain authoritative (see parcel-assistant.ts).
- *
- * Failure model: every failure path is silent. No API key, no identifiable
- * query, request failure, or timeout all return a `skipped` trace with empty
- * results and let the caller continue with the local fallback + OpenRouter.
- */
 
 const TAVILY_SEARCH_URL = "https://api.tavily.com/search";
 const REQUEST_TIMEOUT_MS = 2500;
@@ -68,11 +56,6 @@ function truncateSnippet(value: string): string {
   return `${clean.slice(0, SNIPPET_MAX_CHARS - 1)}…`;
 }
 
-/**
- * Brand + model signals that justify a controlled web lookup.
- * Intentionally narrow: a bare "telefon" or "laptop" emits NO query (those block
- * for a model instead — see buildBlockingProductClarifications).
- */
 const BRAND_PATTERNS: ReadonlyArray<{ brand: RegExp; label: string }> = [
   { brand: /iphone\b/, label: "iphone" },
   { brand: /\bmacbook\b/, label: "macbook" },
@@ -102,11 +85,6 @@ const BRAND_PATTERNS: ReadonlyArray<{ brand: RegExp; label: string }> = [
 const MODEL_TOKEN_PATTERN =
   /\b(\d{1,2}(?:\s*(?:pro(?:\s*max)?|ultra|plus|mini|lite|air|ti|se)?)|(?:pro(?:\s*max)?|ultra|plus|mini|lite|air|ti|se)|(?:s|a|m|z)\d{1,2}|note\s*\d{1,2}|z\s*(?:flip|fold)|vivobook|ideapad|thinkpad|inspiron|elitebook|no\.?\s*\d+|eos|switch|playstation|series\s*[xs])\b/i;
 
-/**
- * Emit short, controlled queries ONLY when a brand is present AND a model token
- * (or another qualifying detail) accompanies it. Falls back to the detected item
- * labels to confirm there is a concrete product worth verifying.
- */
 export function detectProductLookupCandidates(
   description: string,
   detectedItems: ParcelDetectedItem[] = [],
@@ -129,7 +107,6 @@ export function detectProductLookupCandidates(
       continue;
     }
 
-    // Look for a qualifying model token around the brand mention.
     const brandIndex = haystack.indexOf(brandMatch[0]);
     const window = haystack.slice(brandIndex, brandIndex + 40);
     const modelMatch = window.match(MODEL_TOKEN_PATTERN);
@@ -219,11 +196,6 @@ async function lookupOneQuery(
   return out;
 }
 
-/**
- * Run all queries with a shared overall deadline. Returns merged, deduped
- * results. Never throws — any failure (network, non-ok, timeout, bad JSON)
- * contributes nothing and is silently absorbed by the caller's skip logic.
- */
 export async function lookupProducts(queries: string[]): Promise<ProductLookupResult[]> {
   if (!queries.length) {
     return [];
@@ -260,11 +232,6 @@ export async function lookupProducts(queries: string[]): Promise<ProductLookupRe
   return merged.slice(0, TOTAL_RESULTS_CAP);
 }
 
-/**
- * High-level entry point used by the orchestrator. Resolves the queries,
- * performs the lookup, and returns a trace (always present) plus the raw
- * results for attachment to detected items and the LLM prompt.
- */
 export async function runProductLookupForEstimate(
   input: ParcelEstimatorRequest,
   detectedItems: ParcelDetectedItem[],
@@ -318,7 +285,7 @@ export async function runProductLookupForEstimate(
       results,
       skipped: results.length === 0,
       reason: failureReason,
-      usedInPrompt: false, // set by orchestrator based on provider + presence
+      usedInPrompt: false,
     },
     results,
   };

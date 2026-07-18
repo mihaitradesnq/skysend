@@ -34,28 +34,34 @@ export function ToastProvider() {
     <div
       aria-live="polite"
       aria-atomic="false"
-      className="fixed inset-x-3 top-[calc(0.75rem_+_env(safe-area-inset-top))] z-[90] grid gap-3 sm:bottom-auto sm:left-auto sm:right-5 sm:top-5 sm:w-[23rem]"
+      className="pointer-events-none fixed inset-x-3 top-[calc(0.75rem_+_env(safe-area-inset-top))] z-[90] min-h-28 sm:inset-x-auto sm:right-5 sm:top-5 sm:w-[22rem]"
     >
-      {toasts.map((toast) => (
+      {toasts.map((toast, index) => (
         <div
           key={toast.id}
           role="status"
           className={cn(
-            "overflow-hidden rounded-[calc(var(--radius)+0.5rem)] border bg-card/95 shadow-[var(--elevation-panel)] backdrop-blur-md",
+            "pointer-events-auto absolute inset-x-0 overflow-hidden rounded-[1.15rem] border bg-card/92 shadow-[0_18px_44px_-28px_rgba(0,0,0,0.9)] backdrop-blur-xl transition-[transform,opacity] duration-300",
             toneClassNames[toast.tone],
           )}
+          style={{
+            transform: `translateY(${index * 0.7}rem) scale(${1 - index * 0.025})`,
+            transformOrigin: "top center",
+            zIndex: toasts.length - index,
+            opacity: 1 - index * 0.12,
+          }}
         >
-          <div className="flex items-start gap-3 p-4">
+          <div className="flex items-start gap-3 px-4 py-3.5">
             <span
               className={cn(
-                "mt-1 size-2.5 shrink-0 rounded-full",
+                "mt-1.5 size-2 shrink-0 rounded-full shadow-[0_0_0_4px_rgb(255_255_255_/_0.035)]",
                 progressClassNames[toast.tone],
               )}
             />
             <div className="min-w-0 flex-1">
-              <p className="font-medium text-foreground">{toast.title}</p>
+              <p className="text-sm font-semibold tracking-[-0.01em] text-foreground">{toast.title}</p>
               {toast.message ? (
-                <p className="mt-1 text-sm leading-6 text-muted-foreground">
+                <p className="mt-1 text-sm leading-5 text-muted-foreground">
                   {toast.message}
                 </p>
               ) : null}
@@ -64,12 +70,12 @@ export function ToastProvider() {
               type="button"
               aria-label="Închide notificarea"
               onClick={() => dismissToast(toast.id)}
-              className="inline-flex size-11 shrink-0 items-center justify-center rounded-full border border-border/80 bg-secondary/45 text-muted-foreground transition-colors hover:text-foreground focus-visible:ring-4 focus-visible:ring-ring"
+              className="inline-flex size-8 shrink-0 items-center justify-center rounded-full text-muted-foreground/80 transition-colors hover:bg-secondary/70 hover:text-foreground focus-visible:ring-4 focus-visible:ring-ring"
             >
               <X className="size-3.5" />
             </button>
           </div>
-          <div className="h-1 bg-secondary">
+          <div className="h-px bg-border/70">
             <div
               className={cn(
                 "h-full origin-left animate-[toast-progress_linear_forwards]",

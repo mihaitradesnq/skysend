@@ -751,12 +751,14 @@ export function AdminFailedOrdersView({
         );
       });
     } catch {
-      // Keep SSR-loaded orders on failure rather than wiping them.
     }
   }, []);
 
   useEffect(() => {
-    void refreshOrdersFromDB();
+    const refreshTimer = window.setTimeout(() => {
+      void refreshOrdersFromDB();
+    }, 0);
+    return () => window.clearTimeout(refreshTimer);
   }, [refreshOrdersFromDB]);
 
   const reasonOptions = useMemo(() => {

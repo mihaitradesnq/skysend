@@ -12,5 +12,9 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   const identity = await getSupportIdentity(userId);
   if (!identity) return NextResponse.json({ error: "profile_not_found" }, { status: 401 });
   try { return NextResponse.json(await addSupportMessage(identity, (await params).id, parsed.data.body)); }
-  catch (error) { const reason = error instanceof Error ? error.message : "support_unavailable"; return NextResponse.json({ error: reason }, { status: reason.endsWith("not_found") ? 404 : 502 }); }
+  catch (error) {
+    const reason = error instanceof Error ? error.message : "support_unavailable";
+    const status = reason.endsWith("not_found") ? 404 : reason === "forbidden" || reason === "ticket_read_only" ? 403 : reason.startsWith("ticket_") ? 409 : 502;
+    return NextResponse.json({ error: reason }, { status });
+  }
 }

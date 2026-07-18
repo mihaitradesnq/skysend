@@ -116,9 +116,6 @@ export function DashboardTopbar({
                   SkySend
                 </span>
               </Link>
-              <p className="mt-1 text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground sm:hidden">
-                Aplicatie client
-              </p>
               <div className="hidden sm:block">
                 <p
                   className={cn(
@@ -286,6 +283,9 @@ export function DashboardTopbar({
                 className={cn(
                   iconControlClassName,
                   "fixed right-3 top-[calc(0.55rem_+_env(safe-area-inset-top))] z-[60] md:hidden",
+                  floating
+                    ? "border-transparent bg-transparent shadow-none backdrop-blur-none hover:border-transparent hover:bg-transparent"
+                    : undefined,
                 )}
               >
                 <Bell className="size-4" />

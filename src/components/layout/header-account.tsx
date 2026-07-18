@@ -7,10 +7,7 @@ import { AnimatePresence, m } from "motion/react";
 import { ChevronDown, Languages, LogOut, Settings as SettingsIcon, UserRound } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { roleRoutingPaths } from "@/constants/roles";
-import {
-  getDemoAdminRoleFromEmail,
-  getRoleFromClerkMetadata,
-} from "@/lib/auth";
+import { getRoleFromClerkMetadata } from "@/lib/auth";
 import { isClerkFrontendConfigured } from "@/lib/clerk-config";
 import { useSettings } from "@/lib/settings/settings-context";
 import { PreferencesControls } from "@/components/shared/preferences/preferences-controls";
@@ -27,7 +24,6 @@ const clerkEnabled = isClerkFrontendConfigured();
 function accountSettingsUrl(role: UserRole | null | undefined) {
   switch (role) {
     case "admin":
-    case "suport":
       return "/admin/settings";
     case "operator":
       return "/operator";
@@ -50,12 +46,9 @@ function HeaderAccountInner({ mobile = false, onAction }: HeaderAccountProps) {
   const role =
     getRoleFromClerkMetadata(
       (user?.publicMetadata ?? null) as ClerkRoleMetadata | null,
-    ) ??
-    getDemoAdminRoleFromEmail(user?.primaryEmailAddress?.emailAddress ?? null) ??
-    "client";
+    ) ?? "client";
 
   if (!isLoaded) {
-    // Avoid hydration mismatch while Clerk resolves.
     return <span aria-hidden="true" className="size-9" />;
   }
 
@@ -320,7 +313,6 @@ function UserAvatar() {
         aria-hidden="true"
         className="grid size-8 shrink-0 place-items-center overflow-hidden rounded-full border border-border/80 bg-secondary/50"
       >
-        {/* Clerk user avatars are remote URLs controlled by Clerk. */}
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
           src={user.imageUrl}
@@ -370,9 +362,6 @@ function PreferencesOnlyButton({
   mobile = false,
   onAction,
 }: HeaderAccountProps) {
-  // Fallback for environments where Clerk is not configured: keep language,
-  // currency and theme toggles discoverable in the header without surfacing
-  // account controls.
   return (
     <PreferencesMenuTrigger
       mobile={mobile}
@@ -483,8 +472,6 @@ function PreferencesMenuTrigger({
                 }}
                 className="text-[11px] text-muted-foreground/70 underline-offset-2 hover:underline"
               >
-                {/* Keep the parent menu closeable when nested inside the
-                    public mobile menu. */}
                 ok
               </button>
             ) : null}

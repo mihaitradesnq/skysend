@@ -1,6 +1,6 @@
 
 
-export type ProfileRole = "client" | "admin" | "operator" | "suport";
+export type ProfileRole = "client" | "admin" | "operator";
 
 export interface NotificationPreferences {
   popup: boolean;
@@ -44,5 +44,4 @@ export const PROFILE_ROLES: readonly ProfileRole[] = [
   "client",
   "admin",
   "operator",
-  "suport",
 ] as const;

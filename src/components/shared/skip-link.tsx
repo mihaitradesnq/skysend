@@ -2,9 +2,6 @@
 
 import { useSettings } from "@/lib/settings/settings-context";
 
-/**
- * Client-side because its accessible label follows the active UI language.
- */
 export function SkipLink() {
   const { t } = useSettings();
 

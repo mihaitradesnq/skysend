@@ -6,10 +6,6 @@ import { useSettings } from "@/lib/settings/settings-context";
 import type { Language } from "@/lib/settings/types";
 import { cn } from "@/lib/utils";
 
-/**
- * Inline Romania / USA flag glyphs drawn as compact SVGs (no extra deps).
- * Kept small and schematic so they read at 18px.
- */
 function RomaniaFlag() {
   return (
     <svg viewBox="0 0 24 18" className="size-[18px] rounded-[3px]" aria-hidden="true">

@@ -1,22 +1,11 @@
 import type { Language } from "@/lib/settings/types";
 
-/**
- * Flat, dotted-key translation dictionary. Romanian is the source language;
- * English is the display translation. `t(key)` falls back to the key itself
- * when a translation is missing so the UI never crashes on a missing entry.
- *
- * Add keys here as new surfaces are translated. Keep keys grouped by
- * namespace via the dotted prefix (nav.*, header.*, preferences.*, …).
- */
 const roDictionary: Record<string, string> = {
-    // Skip link
     "a11y.skipToContent": "Sari la conținutul principal",
 
-    // Brand
     "brand.name": "SkySend",
     "brand.homeAria": "Acasă SkySend",
 
-    // Public nav
     "nav.howItWorks": "Cum funcționează",
     "nav.pricing": "Tarife",
     "nav.tracking": "Urmărește comanda",
@@ -27,7 +16,6 @@ const roDictionary: Record<string, string> = {
     "nav.openMenu": "Deschide meniul de navigație",
     "nav.closeMenu": "Închide meniul de navigație",
 
-    // Auth controls
     "auth.signIn": "Autentificare",
     "auth.signUp": "Creează cont",
     "auth.signOut": "Deconectare",
@@ -36,7 +24,6 @@ const roDictionary: Record<string, string> = {
     "auth.guest": "Vizitator",
     "auth.preferences": "Preferințe",
 
-    // Preferences menu
     "preferences.language": "Limbă",
     "preferences.currency": "Monedă",
     "preferences.theme": "Temă",
@@ -47,11 +34,9 @@ const roDictionary: Record<string, string> = {
     "preferences.currency.RON": "Lei românești",
     "preferences.currency.EUR": "Euro",
 
-    // Loading overlay
     "loading.title": "Se încarcă…",
     "loading.titleAlt": "Loading…",
 
-    // Settings page preferences section
     "settings.preferences.eyebrow": "Preferințe",
     "settings.preferences.title": "Preferințe aplicație",
     "settings.preferences.description": "Limba, moneda și tema se sincronizează în toată aplicația și rămân salvate după reîncărcare.",
@@ -110,10 +95,6 @@ export const dictionaries: Record<Language, Record<string, string>> = translatio
 
 export type TranslationKey = string;
 
-/**
- * Resolve a dotted translation key for the active language. Falls back to the
- * key itself when missing — the UI stays functional while the gap is filled.
- */
 export function translate(language: Language, key: TranslationKey): string {
   return translations[language][key] ?? translations.ro[key] ?? key;
 }

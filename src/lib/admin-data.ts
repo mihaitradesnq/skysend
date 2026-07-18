@@ -172,6 +172,7 @@ export const lockerRecoveryStatusLabels: Record<LockerRecoveryStatus, string> = 
 export const contactMessageStatusLabels: Record<ContactMessageStatus, string> = {
   new: "Nou",
   read: "Citit",
+  replied: "Răspuns trimis",
   in_progress: "În lucru",
   prepared_reply: "Răspuns pregătit",
   archived: "Arhivat",

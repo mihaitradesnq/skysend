@@ -20,6 +20,11 @@
 # production
 /build
 
+# Storytelling media is versioned in Cloudflare R2. Keep local source and
+# generated assets available to the processing scripts without committing them.
+/public/assets/storytelling/
+/public/assets/story telling poze si video/
+
 # misc
 .DS_Store
 *.pem

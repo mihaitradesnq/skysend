@@ -4,18 +4,17 @@ import { memo, useEffect, useState } from "react";
 import {
   CheckCircle2,
   ChevronDown,
+  ImagePlus,
   LoaderCircle,
   MessageSquareText,
-  PackageSearch,
   Send,
   Sparkles,
   WandSparkles,
+  X,
 } from "lucide-react";
 import { StatusBadge } from "@/components/shared/status-badge";
-import { Card, CardContent } from "@/components/ui/card";
 import {
   getFleetMaxPayloadKg,
-  getParcelGuidanceTone,
   isCreateDeliveryParcelConfirmed,
   parcelCategoryLabels,
   parcelCategoryOptions,
@@ -23,21 +22,20 @@ import {
   parcelPackagingLabels,
   parcelPackagingOptions,
   toParcelAssistantInput,
-  validateCreateDeliveryParcel,
 } from "@/lib/create-delivery-parcel";
 import type { CreateDeliveryParcelDraft } from "@/lib/create-delivery-parcel";
 import { getLocalParcelAssistantResult } from "@/lib/parcel-assistant";
+import { uploadMessageFiles } from "@/lib/attachments/client";
 import {
-  answerOperatorParcelEvaluationQuestion,
-  createOperatorParcelEvaluation,
-  deleteOperatorParcelEvaluation,
-  markOperatorParcelEvaluationApplied,
   operatorParcelEvaluationStatusLabels,
   operatorParcelWarningLabels,
-  readOperatorParcelEvaluationForSession,
-  subscribeOperatorParcelEvaluations,
-} from "@/lib/operator-parcel-evaluations";
-import { useSettings } from "@/lib/settings/settings-context";
+} from "@/lib/parcel-evaluations/constants";
+import {
+  cancelParcelEvaluationRequest,
+  fetchParcelEvaluation,
+  requestParcelEvaluation,
+  sendParcelEvaluationAnswer,
+} from "@/lib/parcel-evaluations/client";
 import { cn } from "@/lib/utils";
 import type {
   ParcelAssistantInput,
@@ -52,14 +50,12 @@ import type {
   ParcelEstimatorResponse,
 } from "@/types/parcel-estimator";
 import type { OperatorParcelEvaluation } from "@/types/operator-parcel-evaluation";
-import type { SkySendPricingResult } from "@/types/pricing";
 import type { ParcelEstimateTraceSnapshot } from "@/types/operator-parcel-evaluation";
 
 type CreateDeliveryParcelSectionProps = {
   sessionId: string;
   parcel: CreateDeliveryParcelDraft;
   guidance: ParcelAssistantResult;
-  pricingSnapshot: SkySendPricingResult;
   onChange: <K extends keyof CreateDeliveryParcelDraft>(
     field: K,
     value: CreateDeliveryParcelDraft[K],
@@ -597,7 +593,6 @@ export const CreateDeliveryParcelSection = memo(function CreateDeliveryParcelSec
   sessionId,
   parcel,
   guidance,
-  pricingSnapshot,
   onAssistantUpdate,
 }: CreateDeliveryParcelSectionProps) {
   const [naturalDescription, setNaturalDescription] = useState(
@@ -628,11 +623,10 @@ export const CreateDeliveryParcelSection = memo(function CreateDeliveryParcelSec
   const [isEstimating, setIsEstimating] = useState(false);
   const [estimateError, setEstimateError] = useState<string | null>(null);
   const [operatorEvaluation, setOperatorEvaluation] =
-    useState<OperatorParcelEvaluation | null>(() =>
-      readOperatorParcelEvaluationForSession(sessionId),
-    );
-  const { formatCurrency } = useSettings();
+    useState<OperatorParcelEvaluation | null>(null);
   const [operatorAnswerDraft, setOperatorAnswerDraft] = useState("");
+  const [operatorAnswerFiles, setOperatorAnswerFiles] = useState<File[]>([]);
+  const [evaluationViewId] = useState(() => crypto.randomUUID());
   const [operatorRequestError, setOperatorRequestError] = useState<string | null>(
     null,
   );
@@ -642,7 +636,6 @@ export const CreateDeliveryParcelSection = memo(function CreateDeliveryParcelSec
 
   const hasNaturalDescription = naturalDescription.trim().length >= 3;
   const hasConfirmedParcel = isCreateDeliveryParcelConfirmed(parcel);
-  const parcelValidation = validateCreateDeliveryParcel(parcel);
   const maxPayloadKg = getFleetMaxPayloadKg();
   const editedPendingEstimate =
     pendingEstimate && confirmationDraft
@@ -658,7 +651,6 @@ export const CreateDeliveryParcelSection = memo(function CreateDeliveryParcelSec
     editedPendingEstimate,
     pendingInput?.contents ?? naturalDescription,
   );
-  const displayedGuidance = guidance;
   const detectedItems = pendingEstimate?.detectedItems ?? [];
   const handlingNotes = pendingEstimate?.handlingNotes ?? [];
   const weatherNotes = pendingEstimate ? getWeatherNotes(pendingEstimate) : [];
@@ -710,23 +702,31 @@ export const CreateDeliveryParcelSection = memo(function CreateDeliveryParcelSec
   const isOperatorEvaluationClosed =
     operatorEvaluation?.status === "finalized" ||
     operatorEvaluation?.status === "closed";
+  const operatorEvaluationLocksParcel = Boolean(
+    operatorEvaluation && operatorEvaluation.status !== "closed",
+  );
 
   useEffect(() => {
-    function refreshOperatorEvaluation() {
-      setOperatorEvaluation(readOperatorParcelEvaluationForSession(sessionId));
+    if (!sessionId) return;
+    let active = true;
+    async function refreshOperatorEvaluation() {
+      try {
+        const evaluation = await fetchParcelEvaluation(sessionId, evaluationViewId);
+        if (active) setOperatorEvaluation(evaluation);
+      } catch {
+        if (active) setOperatorRequestError("Evaluarea nu poate fi încărcată momentan.");
+      }
     }
-
-    refreshOperatorEvaluation();
-
-    return subscribeOperatorParcelEvaluations(refreshOperatorEvaluation);
-  }, [sessionId]);
+    void refreshOperatorEvaluation();
+    const timer = window.setInterval(() => void refreshOperatorEvaluation(), 10_000);
+    return () => { active = false; window.clearInterval(timer); };
+  }, [evaluationViewId, sessionId]);
 
   useEffect(() => {
     if (
       !operatorEvaluation ||
       operatorEvaluation.status !== "finalized" ||
       !operatorEvaluation.profile ||
-      operatorEvaluation.appliedAt ||
       appliedOperatorEvaluationId === operatorEvaluation.id
     ) {
       return;
@@ -743,7 +743,6 @@ export const CreateDeliveryParcelSection = memo(function CreateDeliveryParcelSec
     }
 
     onAssistantUpdate(operatorInput, operatorResult);
-    markOperatorParcelEvaluationApplied(operatorEvaluation.id);
     setAppliedOperatorEvaluationId(operatorEvaluation.id);
     setPendingEstimate(null);
     setPendingInput(null);
@@ -762,6 +761,7 @@ export const CreateDeliveryParcelSection = memo(function CreateDeliveryParcelSec
     field: K,
     value: AdvancedDetailsDraft[K],
   ) {
+    if (operatorEvaluationLocksParcel) return;
     setAdvancedDetails((currentValue) => ({
       ...currentValue,
       [field]: value,
@@ -996,7 +996,7 @@ export const CreateDeliveryParcelSection = memo(function CreateDeliveryParcelSec
     setEstimateError(null);
   }
 
-  function handleRequestOperatorEvaluation() {
+  async function handleRequestOperatorEvaluation() {
     if (!hasNaturalDescription) {
       setOperatorRequestError(
         "Descrie pe scurt coletul inainte de cererea catre operator.",
@@ -1005,32 +1005,30 @@ export const CreateDeliveryParcelSection = memo(function CreateDeliveryParcelSec
     }
 
     const requestInput = pendingInput ?? buildRequestInput();
-    const evaluation = createOperatorParcelEvaluation({
-      sessionId,
-      initialDescription: requestInput.contents,
-      parcelSnapshot: {
+    try {
+      const evaluation = await requestParcelEvaluation({
+        draftId: sessionId,
+        description: requestInput.contents,
+        parcelSnapshot: {
         category: requestInput.category ?? parcel.category,
         packaging: requestInput.packaging,
         approximateSize: requestInput.approximateSize,
         fragilityLevel: requestInput.fragilityLevel ?? parcel.fragilityLevel,
-      },
-      estimateTrace: editedPendingEstimate
-        ? buildEstimateTraceSnapshot(editedPendingEstimate)
-        : null,
-    });
-
-    if (!evaluation) {
+        },
+        estimateTrace: editedPendingEstimate
+          ? buildEstimateTraceSnapshot(editedPendingEstimate)
+          : null,
+      });
+      setOperatorRequestError(null);
+      setOperatorEvaluation(evaluation);
+    } catch {
       setOperatorRequestError(
-        "Cererea nu poate fi salvata in acest browser momentan.",
+        "Cererea nu poate fi salvată momentan. Reîncearcă.",
       );
-      return;
     }
-
-    setOperatorRequestError(null);
-    setOperatorEvaluation(evaluation);
   }
 
-  function handleAnswerOperatorQuestion() {
+  async function handleAnswerOperatorQuestion() {
     if (!operatorEvaluation || !activeOperatorQuestion) {
       return;
     }
@@ -1041,28 +1039,38 @@ export const CreateDeliveryParcelSection = memo(function CreateDeliveryParcelSec
       return;
     }
 
-    const result = answerOperatorParcelEvaluationQuestion({
-      evaluationId: operatorEvaluation.id,
-      answer,
-    });
-
-    if (result.ok) {
-      setOperatorEvaluation(result.evaluation);
+    try {
+      const message = await sendParcelEvaluationAnswer({
+        evaluationId: operatorEvaluation.id,
+        questionId: activeOperatorQuestion.id,
+        body: answer,
+      });
+      if (operatorAnswerFiles.length) {
+        await uploadMessageFiles({ scope: "evaluation", parentId: message.id, files: operatorAnswerFiles });
+      }
+      setOperatorEvaluation(await fetchParcelEvaluation(sessionId, evaluationViewId));
       setOperatorAnswerDraft("");
+      setOperatorAnswerFiles([]);
+      setOperatorRequestError(null);
+    } catch {
+      setOperatorRequestError("Răspunsul sau una dintre imagini nu a putut fi trimisă.");
     }
   }
 
-  function cancelOperatorEvaluationAfterDescriptionChange() {
+  async function closeOperatorEvaluation() {
     if (!operatorEvaluation || isOperatorEvaluationClosed) {
       return;
     }
 
-    deleteOperatorParcelEvaluation(operatorEvaluation.id);
-    setOperatorEvaluation(null);
-    setOperatorAnswerDraft("");
-    setOperatorRequestError(
-      "Cererea de evaluare operator a fost stearsa deoarece descrierea coletului a fost modificata.",
-    );
+    try {
+      await cancelParcelEvaluationRequest(operatorEvaluation.id);
+      setOperatorEvaluation(null);
+      setOperatorAnswerDraft("");
+      setOperatorAnswerFiles([]);
+      setOperatorRequestError("Cererea de evaluare a fost închisă. Poți edita din nou datele coletului.");
+    } catch {
+      setOperatorRequestError("Cererea nu a putut fi închisă.");
+    }
   }
 
   function handleUseDeterministicFallback() {
@@ -1087,9 +1095,9 @@ export const CreateDeliveryParcelSection = memo(function CreateDeliveryParcelSec
   }
 
   return (
-    <div className="grid min-w-0 gap-4 sm:gap-5 2xl:grid-cols-[minmax(0,1fr)_minmax(18rem,0.52fr)]">
+    <div className="grid min-w-0 gap-4 sm:gap-5">
       <div className="grid min-w-0 gap-4 sm:gap-5">
-        <div className="grid min-w-0 gap-4 rounded-[calc(var(--radius)+0.75rem)] border border-primary/20 bg-card p-3.5 shadow-[var(--elevation-card)] min-[360px]:p-4 sm:gap-5 sm:p-5">
+        <div className="grid min-w-0 gap-3.5 rounded-[calc(var(--radius)+0.5rem)] border border-primary/20 bg-card p-3.5 shadow-[var(--elevation-card)] sm:gap-4 sm:p-4">
           <div className="flex min-w-0 flex-wrap items-start justify-between gap-3 sm:gap-4">
             <div className="grid min-w-0 gap-2">
               <div className="flex items-center gap-2 text-sm font-medium text-primary">
@@ -1120,7 +1128,6 @@ export const CreateDeliveryParcelSection = memo(function CreateDeliveryParcelSec
               placeholder="Ex: o cutie mică cu medicamente, două sticle de 500 ml și un borcan fragil"
               onChange={(event) => {
                 setNaturalDescription(event.target.value);
-                cancelOperatorEvaluationAfterDescriptionChange();
                 setPendingEstimate(null);
                 setPendingInput(null);
                 setConfirmationDraft(null);
@@ -1129,7 +1136,8 @@ export const CreateDeliveryParcelSection = memo(function CreateDeliveryParcelSec
                 setSubmittedClarificationAnswers([]);
                 setEstimateError(null);
               }}
-              className="min-h-40 w-full resize-y rounded-[var(--ui-radius-card)] border border-input bg-background px-3.5 py-3 text-base leading-7 outline-none transition-[border-color,box-shadow] placeholder:text-muted-foreground/80 focus-visible:border-primary/15 focus-visible:ring-4 focus-visible:ring-ring sm:min-h-44 sm:px-4"
+              disabled={operatorEvaluationLocksParcel}
+              className="min-h-32 w-full resize-y rounded-[var(--ui-radius-card)] border border-input bg-background px-3.5 py-3 text-base leading-7 outline-none transition-[border-color,box-shadow] placeholder:text-muted-foreground/80 focus-visible:border-primary/15 focus-visible:ring-4 focus-visible:ring-ring sm:min-h-36 sm:px-4"
             />
           </label>
 
@@ -1172,6 +1180,7 @@ export const CreateDeliveryParcelSection = memo(function CreateDeliveryParcelSec
                   min="0.1"
                   step="0.1"
                   value={advancedDetails.knownWeightKg}
+                  disabled={operatorEvaluationLocksParcel}
                   placeholder="Opțional"
                   onChange={(event) =>
                     updateAdvancedDetails("knownWeightKg", event.target.value)
@@ -1186,6 +1195,7 @@ export const CreateDeliveryParcelSection = memo(function CreateDeliveryParcelSec
                 </span>
                 <select
                   value={advancedDetails.packaging}
+                  disabled={operatorEvaluationLocksParcel}
                   onChange={(event) =>
                     updateAdvancedDetails(
                       "packaging",
@@ -1216,7 +1226,8 @@ export const CreateDeliveryParcelSection = memo(function CreateDeliveryParcelSec
                       type="number"
                       min="1"
                       step="1"
-                      value={advancedDetails[field]}
+                        value={advancedDetails[field]}
+                        disabled={operatorEvaluationLocksParcel}
                       placeholder="Opțional"
                       onChange={(event) =>
                         updateAdvancedDetails(field, event.target.value)
@@ -1231,6 +1242,7 @@ export const CreateDeliveryParcelSection = memo(function CreateDeliveryParcelSec
                 <input
                   type="checkbox"
                   checked={advancedDetails.fragile}
+                  disabled={operatorEvaluationLocksParcel}
                   onChange={(event) =>
                     updateAdvancedDetails("fragile", event.target.checked)
                   }
@@ -1245,6 +1257,7 @@ export const CreateDeliveryParcelSection = memo(function CreateDeliveryParcelSec
                 </span>
                 <textarea
                   value={advancedDetails.notes}
+                  disabled={operatorEvaluationLocksParcel}
                   rows={3}
                   placeholder="Opțional: temperatură, orientare, ambalaj special"
                   onChange={(event) =>
@@ -1318,7 +1331,7 @@ export const CreateDeliveryParcelSection = memo(function CreateDeliveryParcelSec
             </div>
           ) : null}
 
-          <div className="sticky bottom-[var(--bottom-nav-height)] z-10 -mx-4 grid gap-3 rounded-none border-t border-border/70 bg-card/98 p-3 shadow-none sm:static sm:mx-0 sm:flex sm:flex-row sm:items-center sm:justify-between sm:border-0 sm:bg-transparent sm:p-0 sm:shadow-none">
+          <div className="grid gap-3 border-t border-border/70 pt-3 sm:flex sm:flex-row sm:items-center sm:justify-between">
             <p className="text-sm leading-6 text-muted-foreground">
               Detaliile avansate rafinează estimarea, dar descrierea rămâne sursa
               principală.
@@ -1338,16 +1351,6 @@ export const CreateDeliveryParcelSection = memo(function CreateDeliveryParcelSec
             </button>
           </div>
         </div>
-
-        {isEstimating ? (
-          <div className="flex min-w-0 items-center gap-3 rounded-[calc(var(--radius)+0.5rem)] border border-primary/25 bg-primary/10 px-4 py-3 text-sm leading-6 text-muted-foreground">
-            <LoaderCircle className="size-4 shrink-0 animate-spin text-primary" />
-            <span>
-              Estimarea rulează pe server. Profilul coletului nu se aplică
-              până la confirmare.
-            </span>
-          </div>
-        ) : null}
 
         {operatorEvaluation ? (
           <div className="grid min-w-0 gap-4 rounded-[calc(var(--radius)+0.75rem)] border border-border/80 bg-card p-3.5 shadow-[var(--elevation-card)] min-[360px]:p-4 sm:p-5">
@@ -1424,16 +1427,50 @@ export const CreateDeliveryParcelSection = memo(function CreateDeliveryParcelSec
                     className="min-h-24 w-full resize-y rounded-[var(--ui-radius-card)] border border-input bg-card px-4 py-3 text-sm leading-6 outline-none transition-[border-color,box-shadow] placeholder:text-muted-foreground/70 focus-visible:border-primary/15 focus-visible:ring-4 focus-visible:ring-ring"
                   />
                 </label>
+                {operatorAnswerFiles.length ? (
+                  <div className="flex flex-wrap gap-2">
+                    {operatorAnswerFiles.map((file) => (
+                      <span key={`${file.name}-${file.size}`} className="inline-flex items-center gap-1 rounded-full bg-background px-2.5 py-1 text-xs">
+                        {file.name}
+                        <button type="button" aria-label={`Elimină ${file.name}`} onClick={() => setOperatorAnswerFiles((current) => current.filter((item) => item !== file))}>
+                          <X className="size-3" />
+                        </button>
+                      </span>
+                    ))}
+                  </div>
+                ) : null}
+                <label className="inline-flex h-10 w-fit cursor-pointer items-center gap-2 rounded-xl border bg-card px-3 text-xs font-medium text-muted-foreground hover:text-foreground">
+                  <ImagePlus className="size-4" />
+                  Adaugă imagini
+                  <input
+                    type="file"
+                    multiple
+                    accept="image/jpeg,image/png,image/webp,image/heic,image/heif"
+                    className="sr-only"
+                    onChange={(event) => setOperatorAnswerFiles(Array.from(event.target.files ?? []).slice(0, 2))}
+                  />
+                </label>
                 <button
                   type="button"
-                  onClick={handleAnswerOperatorQuestion}
+                  onClick={() => void handleAnswerOperatorQuestion()}
                   disabled={!operatorAnswerDraft.trim()}
                   className="inline-flex h-11 w-full items-center justify-center gap-2 rounded-2xl bg-primary px-4 text-sm font-semibold text-primary-foreground transition-opacity hover:opacity-90 disabled:pointer-events-none disabled:opacity-55 sm:w-fit"
                 >
                   <Send className="size-4" />
                   Trimite raspuns
                 </button>
+                <p className="text-xs text-muted-foreground">Poți atașa maximum 2 imagini, 25 MB fiecare.</p>
               </div>
+            ) : null}
+
+            {!isOperatorEvaluationClosed ? (
+              <button
+                type="button"
+                onClick={() => void closeOperatorEvaluation()}
+                className="h-10 w-fit rounded-xl border border-border/80 bg-background px-3 text-xs font-medium text-muted-foreground hover:text-foreground"
+              >
+                Închide cererea de evaluare
+              </button>
             ) : null}
 
             {operatorEvaluation.status === "finalized" ? (
@@ -1449,7 +1486,7 @@ export const CreateDeliveryParcelSection = memo(function CreateDeliveryParcelSec
         ) : null}
 
         {pendingEstimate ? (
-          <div className="grid min-w-0 gap-4 rounded-[calc(var(--radius)+0.75rem)] border border-primary/25 bg-card p-3.5 shadow-[var(--elevation-card)] min-[360px]:p-4 sm:p-5">
+          <div className="grid min-w-0 gap-4 rounded-[calc(var(--radius)+0.5rem)] border border-primary/25 bg-card p-3.5 shadow-[var(--elevation-card)] sm:p-4">
             <div className="flex min-w-0 flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
               <div className="min-w-0">
                 <div className="flex items-center gap-2 text-sm font-medium text-primary">
@@ -1467,32 +1504,40 @@ export const CreateDeliveryParcelSection = memo(function CreateDeliveryParcelSec
               />
             </div>
 
-            <div className="grid min-w-0 gap-3 sm:grid-cols-3">
-              <div className="rounded-[calc(var(--radius)+0.25rem)] border border-border/80 bg-secondary/45 px-4 py-4">
-                <p className="text-sm text-muted-foreground">Greutate</p>
-                <p className="mt-2 font-heading text-xl tracking-tight">
+            <dl className="grid min-w-0 grid-cols-2 border-y border-border/70 sm:grid-cols-4">
+              <div className="min-w-0 px-3 py-3 sm:border-r sm:border-border/70">
+                <dt className="text-xs uppercase tracking-[0.12em] text-muted-foreground">Greutate</dt>
+                <dd className="mt-1 truncate font-medium text-foreground">
                   {activeEstimateResult?.estimatedWeightRange}
-                </p>
+                </dd>
               </div>
-              <div className="rounded-[calc(var(--radius)+0.25rem)] border border-border/80 bg-secondary/45 px-4 py-4">
-                <p className="text-sm text-muted-foreground">Configurație</p>
-                <p className="mt-2 font-heading text-xl tracking-tight">
-                  Automată după confirmare
-                </p>
-              </div>
-              <div className="rounded-[calc(var(--radius)+0.25rem)] border border-border/80 bg-secondary/45 px-4 py-4">
-                <p className="text-sm text-muted-foreground">Ambalaj</p>
-                <p className="mt-2 font-medium text-foreground">
+              <div className="min-w-0 border-l border-border/70 px-3 py-3 sm:border-l-0 sm:border-r">
+                <dt className="text-xs uppercase tracking-[0.12em] text-muted-foreground">Ambalaj</dt>
+                <dd className="mt-1 truncate font-medium text-foreground">
                   {confirmationDraft
                     ? parcelPackagingLabels[confirmationDraft.packaging]
                     : pendingEstimate.packagingInference?.packagingType
-                      ? parcelPackagingLabels[
-                          pendingEstimate.packagingInference.packagingType
-                        ]
+                      ? parcelPackagingLabels[pendingEstimate.packagingInference.packagingType]
                       : parcelPackagingLabels[advancedDetails.packaging]}
-                </p>
+                </dd>
               </div>
-            </div>
+              <div className="min-w-0 border-t border-border/70 px-3 py-3 sm:border-r sm:border-t-0">
+                <dt className="text-xs uppercase tracking-[0.12em] text-muted-foreground">Categorie</dt>
+                <dd className="mt-1 truncate font-medium text-foreground">
+                  {confirmationDraft
+                    ? parcelCategoryLabels[confirmationDraft.category]
+                    : pendingEstimate.category
+                      ? parcelCategoryLabels[pendingEstimate.category]
+                      : parcelCategoryLabels[parcel.category]}
+                </dd>
+              </div>
+              <div className="min-w-0 border-l border-t border-border/70 px-3 py-3 sm:border-l-0 sm:border-t-0">
+                <dt className="text-xs uppercase tracking-[0.12em] text-muted-foreground">Încredere</dt>
+                <dd className="mt-1 truncate font-medium text-foreground">
+                  {getConfidenceLabel(pendingEstimate)}
+                </dd>
+              </div>
+            </dl>
 
             {correctionDisplay ? (
               <div className="grid min-w-0 gap-3 rounded-[calc(var(--radius)+0.375rem)] border border-primary/25 bg-primary/10 px-4 py-4">
@@ -1556,27 +1601,22 @@ export const CreateDeliveryParcelSection = memo(function CreateDeliveryParcelSec
             ) : null}
 
             {confirmationDraft ? (
-              <div className="grid min-w-0 gap-4 rounded-[calc(var(--radius)+0.5rem)] border border-border/80 bg-background/70 p-3.5 sm:p-4">
-                <div className="flex min-w-0 flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                  <div className="min-w-0">
-                    <p className="font-medium text-foreground">
-                      Profil editabil
-                    </p>
-                    <p className="mt-1 text-sm leading-6 text-muted-foreground">
-                      Ajustările rămân locale până confirmi profilul. După
-                      confirmare, configurația se recalculează automat.
-                    </p>
-                  </div>
+              <div className="grid min-w-0 gap-3 border-y border-border/70 py-3">
+                <div className="flex justify-end">
                   <button
                     type="button"
-                    onClick={() => setIsEditingConfirmation(true)}
+                    onClick={() =>
+                      setIsEditingConfirmation((currentValue) => !currentValue)
+                    }
+                    aria-expanded={isEditingConfirmation}
                     className="h-10 w-full rounded-2xl border border-border/80 bg-card px-4 text-sm font-medium text-foreground transition-colors hover:bg-secondary/60 sm:w-fit"
                   >
-                    Editează manual
+                    {isEditingConfirmation ? "Închide editarea" : "Editează manual"}
                   </button>
                 </div>
 
-                <div className="grid min-w-0 gap-3 sm:grid-cols-2">
+                {isEditingConfirmation ? (
+                <div className="grid min-w-0 gap-3 pt-1 sm:grid-cols-2">
                   <label className="grid min-w-0 gap-2">
                     <span className="text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">
                       Categorie
@@ -1710,87 +1750,55 @@ export const CreateDeliveryParcelSection = memo(function CreateDeliveryParcelSec
                     </div>
                   </div>
                 </div>
+                ) : null}
               </div>
             ) : null}
 
-            {detectedItems.length ? (
-              <div className="min-w-0">
-                <p className="text-sm text-muted-foreground">Elemente detectate</p>
-                <div className="mt-3 flex flex-wrap gap-2">
-                  {detectedItems.map((item) => (
-                    <StatusBadge
-                      key={item}
-                      label={item}
-                      tone="neutral"
-                      className="max-w-full shrink whitespace-normal"
-                    />
-                  ))}
+            {detectedItems.length || handlingNotes.length || weatherNotes.length || riskFlags.length ? (
+              <details className="group border-y border-border/70 py-1">
+                <summary className="flex min-h-11 cursor-pointer list-none items-center justify-between gap-3 text-sm font-medium text-foreground">
+                  <span>Detalii analiză</span>
+                  <span className="flex items-center gap-2 text-xs text-muted-foreground">
+                    {confirmationDraft
+                      ? parcelFragileLevelLabels[confirmationDraft.fragilityLevel]
+                      : parcelFragileLevelLabels[pendingEstimate.fragileLevel]}
+                    <ChevronDown className="size-4 transition-transform group-open:rotate-180" />
+                  </span>
+                </summary>
+                <div className="grid gap-3 pb-3 pt-2">
+                  {detectedItems.length ? (
+                    <div>
+                      <p className="text-xs uppercase tracking-[0.12em] text-muted-foreground">Elemente detectate</p>
+                      <div className="mt-2 flex flex-wrap gap-2">
+                        {detectedItems.map((item) => (
+                          <StatusBadge key={item} label={item} tone="neutral" className="max-w-full shrink whitespace-normal" />
+                        ))}
+                      </div>
+                    </div>
+                  ) : null}
+                  {handlingNotes.length || weatherNotes.length || riskFlags.length ? (
+                    <div>
+                      <p className="text-xs uppercase tracking-[0.12em] text-muted-foreground">Manipulare și risc</p>
+                      <div className="mt-2 flex flex-wrap gap-2">
+                        {handlingNotes.map((note) => (
+                          <StatusBadge key={`${note.code}-${note.label}`} label={note.label} tone="neutral" className="max-w-full shrink whitespace-normal" />
+                        ))}
+                        {weatherNotes.map((note) => (
+                          <StatusBadge key={note} label={note} tone="neutral" className="max-w-full shrink whitespace-normal" />
+                        ))}
+                        {riskFlags.map((risk) => (
+                          <StatusBadge key={`${risk.code}-${risk.label}`} label={risk.label} tone={risk.severity === "high" ? "warning" : "neutral"} className="max-w-full shrink whitespace-normal" />
+                        ))}
+                      </div>
+                    </div>
+                  ) : null}
+                  {pendingEstimate.confidenceScore ? (
+                    <p className="text-xs text-muted-foreground">
+                      Scor de încredere: {pendingEstimate.confidenceScore}/100
+                    </p>
+                  ) : null}
                 </div>
-              </div>
-            ) : null}
-
-            <div className="grid min-w-0 gap-3 md:grid-cols-3">
-              <div className="rounded-[calc(var(--radius)+0.25rem)] border border-border/80 bg-background px-4 py-4">
-                <p className="text-sm text-muted-foreground">Categorie</p>
-                <p className="mt-2 font-medium text-foreground">
-                  {confirmationDraft
-                    ? parcelCategoryLabels[confirmationDraft.category]
-                    : pendingEstimate.category
-                      ? parcelCategoryLabels[pendingEstimate.category]
-                      : parcelCategoryLabels[parcel.category]}
-                </p>
-              </div>
-              <div className="rounded-[calc(var(--radius)+0.25rem)] border border-border/80 bg-background px-4 py-4">
-                <p className="text-sm text-muted-foreground">Fragilitate</p>
-                <p className="mt-2 font-medium text-foreground">
-                  {confirmationDraft
-                    ? parcelFragileLevelLabels[confirmationDraft.fragilityLevel]
-                    : parcelFragileLevelLabels[pendingEstimate.fragileLevel]}
-                </p>
-              </div>
-              <div className="rounded-[calc(var(--radius)+0.25rem)] border border-border/80 bg-background px-4 py-4">
-                <p className="text-sm text-muted-foreground">Încredere</p>
-                <p className="mt-2 font-medium text-foreground">
-                  {getConfidenceLabel(pendingEstimate)}
-                  {pendingEstimate.confidenceScore
-                    ? ` · ${pendingEstimate.confidenceScore}/100`
-                    : ""}
-                </p>
-              </div>
-            </div>
-
-            {handlingNotes.length || weatherNotes.length || riskFlags.length ? (
-              <div className="grid min-w-0 gap-3 rounded-[calc(var(--radius)+0.375rem)] border border-border/80 bg-background px-4 py-4">
-                <p className="font-medium text-foreground">
-                  Note de manipulare și risc
-                </p>
-                <div className="flex flex-wrap gap-2">
-                  {handlingNotes.map((note) => (
-                    <StatusBadge
-                      key={`${note.code}-${note.label}`}
-                      label={note.label}
-                      tone="neutral"
-                      className="max-w-full shrink whitespace-normal"
-                    />
-                  ))}
-                  {weatherNotes.map((note) => (
-                    <StatusBadge
-                      key={note}
-                      label={note}
-                      tone="neutral"
-                      className="max-w-full shrink whitespace-normal"
-                    />
-                  ))}
-                  {riskFlags.map((risk) => (
-                    <StatusBadge
-                      key={`${risk.code}-${risk.label}`}
-                      label={risk.label}
-                      tone={risk.severity === "high" ? "warning" : "neutral"}
-                      className="max-w-full shrink whitespace-normal"
-                    />
-                  ))}
-                </div>
-              </div>
+              </details>
             ) : null}
 
             {hasClarificationQuestions ? (
@@ -1898,22 +1906,14 @@ export const CreateDeliveryParcelSection = memo(function CreateDeliveryParcelSec
               </div>
             ) : null}
 
-            <div className="sticky bottom-[var(--bottom-nav-height)] z-10 -mx-4 grid gap-2 rounded-none border-t border-border/70 bg-card/98 p-3 shadow-none sm:static sm:mx-0 sm:flex sm:flex-row sm:justify-end sm:border-0 sm:bg-transparent sm:p-0 sm:shadow-none">
+            <div className="grid gap-2 border-t border-border/70 pt-3 sm:flex sm:flex-row sm:justify-end">
               <button
                 type="button"
-                onClick={handleRequestOperatorEvaluation}
-                disabled={Boolean(operatorEvaluation && !isOperatorEvaluationClosed)}
+                onClick={() => void handleRequestOperatorEvaluation()}
+                disabled={Boolean(operatorEvaluation)}
                 className="h-11 w-full rounded-2xl border border-border/80 bg-background px-4 text-sm font-medium text-foreground transition-colors hover:bg-secondary/60 disabled:pointer-events-none disabled:opacity-55 sm:w-fit"
               >
                 Cere evaluare operator
-              </button>
-              <button
-                type="button"
-                onClick={() => handleEstimateParcel()}
-                disabled={isEstimating}
-                className="h-11 w-full rounded-2xl border border-border/80 bg-background px-4 text-sm font-medium text-foreground transition-colors hover:bg-secondary/60 disabled:pointer-events-none disabled:opacity-55 sm:w-fit"
-              >
-                Reestimează
               </button>
               <button
                 type="button"
@@ -1928,104 +1928,6 @@ export const CreateDeliveryParcelSection = memo(function CreateDeliveryParcelSec
         ) : null}
       </div>
 
-      <Card
-        size="sm"
-        className="min-w-0 rounded-[calc(var(--radius)+0.5rem)] shadow-none 2xl:sticky 2xl:top-4 2xl:self-start"
-      >
-        <CardContent className="grid min-w-0 gap-4 p-3.5 min-[360px]:p-4 sm:p-5">
-          <div className="flex min-w-0 flex-col gap-3 sm:flex-row sm:items-start sm:justify-between 2xl:flex-col">
-            <div className="min-w-0 space-y-1">
-              <p className="font-medium text-foreground">Profil colet</p>
-              <p className="text-sm leading-6 text-muted-foreground">
-                {pendingEstimate
-                  ? "Estimare neconfirmată. Confirmarea actualizează livrarea."
-                  : "Profilul confirmat este folosit pentru dronă și plată."}
-              </p>
-            </div>
-            {hasConfirmedParcel ? (
-              <StatusBadge
-                label={parcelFragileLevelLabels[guidance.fragileLevel]}
-                tone={getParcelGuidanceTone(guidance.fragileLevel)}
-                className="max-w-full shrink whitespace-normal"
-              />
-            ) : null}
-          </div>
-
-          {!hasConfirmedParcel ? (
-            <div className="rounded-[calc(var(--radius)+0.25rem)] border border-border/80 bg-secondary/45 px-4 py-5">
-              <p className="font-medium text-foreground">Începe cu o descriere</p>
-              <p className="mt-2 text-sm leading-6 text-muted-foreground">
-                Scrie ce conține coletul, apoi rulează estimarea. Nimic nu se
-                aplică până nu confirmi rezultatul.
-              </p>
-            </div>
-          ) : (
-            <>
-              <div className="grid min-w-0 gap-3 sm:grid-cols-2 2xl:grid-cols-1">
-                <div className="rounded-[calc(var(--radius)+0.25rem)] border border-border/80 bg-secondary/45 px-4 py-4">
-                  <p className="text-sm text-muted-foreground">Interval greutate</p>
-                  <p className="mt-2 font-heading text-xl tracking-tight">
-                    {displayedGuidance.estimatedWeightRange}
-                  </p>
-                </div>
-
-                <div className="rounded-[calc(var(--radius)+0.25rem)] border border-border/80 bg-secondary/45 px-4 py-4">
-                  <p className="text-sm text-muted-foreground">Configurație</p>
-                  <p className="mt-2 font-heading text-xl tracking-tight">
-                    Automată
-                  </p>
-                </div>
-              </div>
-
-              <div className="grid min-w-0 gap-3 sm:grid-cols-2 2xl:grid-cols-1">
-                <div className="rounded-[calc(var(--radius)+0.25rem)] border border-border/80 bg-background px-4 py-4">
-                  <p className="text-sm text-muted-foreground">Încredere</p>
-                  <p className="mt-2 font-medium text-foreground">
-                    {pendingEstimate
-                      ? getConfidenceLabel(pendingEstimate)
-                      : parcel.valueSource === "assistant"
-                        ? "Estimare confirmată"
-                        : "Valori introduse manual"}
-                  </p>
-                </div>
-
-                <div className="rounded-[calc(var(--radius)+0.25rem)] border border-border/80 bg-background px-4 py-4">
-                  <p className="text-sm text-muted-foreground">Total estimat</p>
-                  <p className="mt-2 font-heading text-xl tracking-tight">
-                    {formatCurrency(pricingSnapshot.total.amountMinor)}
-                  </p>
-                </div>
-              </div>
-
-              <div className="rounded-[calc(var(--radius)+0.25rem)] border border-border/80 bg-background px-4 py-4">
-                <div className="flex items-center gap-2">
-                  <PackageSearch className="size-4 text-foreground" />
-                  <p className="font-medium text-foreground">Notă profil</p>
-                </div>
-                <p className="mt-3 text-sm leading-6 text-muted-foreground">
-                  {displayedGuidance.confidenceNote}
-                </p>
-              </div>
-
-              {!parcelValidation.isValid ? (
-                <div className="rounded-[calc(var(--radius)+0.25rem)] border border-warning/30 bg-warning/10 px-4 py-4">
-                  <p className="font-medium text-foreground">
-                    Necesită verificare
-                  </p>
-                  <p className="mt-2 text-sm leading-6 text-muted-foreground">
-                    {parcelValidation.weightMessage}
-                  </p>
-                  {parcelValidation.dimensionsMessage ? (
-                    <p className="mt-2 text-sm leading-6 text-muted-foreground">
-                      {parcelValidation.dimensionsMessage}
-                    </p>
-                  ) : null}
-                </div>
-              ) : null}
-            </>
-          )}
-        </CardContent>
-      </Card>
     </div>
   );
 });

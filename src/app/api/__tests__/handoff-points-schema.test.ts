@@ -26,7 +26,7 @@ describe("handoff-points POST schema", () => {
       ...validPayload,
       address: {
         ...validPayload.address,
-        location: { latitude: 48.8566, longitude: 2.3522 }, // Paris
+        location: { latitude: 48.8566, longitude: 2.3522 },
       },
     });
     expect(result.success).toBe(false);

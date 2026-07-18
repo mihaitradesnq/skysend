@@ -7,7 +7,6 @@ export type Json =
   | Json[]
 
 export type Database = {
-
   __InternalSupabase: {
     PostgrestVersion: "14.5"
   }
@@ -75,6 +74,244 @@ export type Database = {
           },
         ]
       }
+      admin_access_requests: {
+        Row: {
+          assignment_id: string | null
+          cancelled_at: string | null
+          created_at: string
+          decided_at: string | null
+          id: string
+          reason: string
+          requested_duration_minutes: number
+          requester_profile_id: string
+          review_note: string | null
+          reviewed_by_profile_id: string | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          assignment_id?: string | null
+          cancelled_at?: string | null
+          created_at?: string
+          decided_at?: string | null
+          id?: string
+          reason: string
+          requested_duration_minutes: number
+          requester_profile_id: string
+          review_note?: string | null
+          reviewed_by_profile_id?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          assignment_id?: string | null
+          cancelled_at?: string | null
+          created_at?: string
+          decided_at?: string | null
+          id?: string
+          reason?: string
+          requested_duration_minutes?: number
+          requester_profile_id?: string
+          review_note?: string | null
+          reviewed_by_profile_id?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "admin_access_requests_assignment_id_fkey"
+            columns: ["assignment_id"]
+            isOneToOne: false
+            referencedRelation: "staff_access_assignments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "admin_access_requests_requester_profile_id_fkey"
+            columns: ["requester_profile_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "admin_access_requests_reviewed_by_profile_id_fkey"
+            columns: ["reviewed_by_profile_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      admin_mfa_credentials: {
+        Row: {
+          confirmed_at: string | null
+          created_at: string
+          encrypted_secret: string
+          encryption_iv: string
+          encryption_tag: string
+          failed_attempts: number
+          id: string
+          last_used_step: number | null
+          locked_until: string | null
+          profile_id: string
+          updated_at: string
+        }
+        Insert: {
+          confirmed_at?: string | null
+          created_at?: string
+          encrypted_secret: string
+          encryption_iv: string
+          encryption_tag: string
+          failed_attempts?: number
+          id?: string
+          last_used_step?: number | null
+          locked_until?: string | null
+          profile_id: string
+          updated_at?: string
+        }
+        Update: {
+          confirmed_at?: string | null
+          created_at?: string
+          encrypted_secret?: string
+          encryption_iv?: string
+          encryption_tag?: string
+          failed_attempts?: number
+          id?: string
+          last_used_step?: number | null
+          locked_until?: string | null
+          profile_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "admin_mfa_credentials_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: true
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      admin_mfa_recovery_codes: {
+        Row: {
+          code_hash: string
+          created_at: string
+          credential_id: string
+          id: string
+          used_at: string | null
+        }
+        Insert: {
+          code_hash: string
+          created_at?: string
+          credential_id: string
+          id?: string
+          used_at?: string | null
+        }
+        Update: {
+          code_hash?: string
+          created_at?: string
+          credential_id?: string
+          id?: string
+          used_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "admin_mfa_recovery_codes_credential_id_fkey"
+            columns: ["credential_id"]
+            isOneToOne: false
+            referencedRelation: "admin_mfa_credentials"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      assistant_conversations: {
+        Row: {
+          contact_email: string | null
+          contact_name: string | null
+          created_at: string
+          expires_at: string
+          id: string
+          last_message_at: string
+          mode: string
+          profile_id: string | null
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          contact_email?: string | null
+          contact_name?: string | null
+          created_at?: string
+          expires_at?: string
+          id?: string
+          last_message_at?: string
+          mode?: string
+          profile_id?: string | null
+          title?: string
+          updated_at?: string
+        }
+        Update: {
+          contact_email?: string | null
+          contact_name?: string | null
+          created_at?: string
+          expires_at?: string
+          id?: string
+          last_message_at?: string
+          mode?: string
+          profile_id?: string | null
+          title?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "assistant_conversations_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      assistant_messages: {
+        Row: {
+          author_profile_id: string | null
+          author_type: string
+          body: string
+          conversation_id: string
+          created_at: string
+          id: string
+        }
+        Insert: {
+          author_profile_id?: string | null
+          author_type: string
+          body: string
+          conversation_id: string
+          created_at?: string
+          id?: string
+        }
+        Update: {
+          author_profile_id?: string | null
+          author_type?: string
+          body?: string
+          conversation_id?: string
+          created_at?: string
+          id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "assistant_messages_author_profile_id_fkey"
+            columns: ["author_profile_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "assistant_messages_conversation_id_fkey"
+            columns: ["conversation_id"]
+            isOneToOne: false
+            referencedRelation: "assistant_conversations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       audit_events: {
         Row: {
           action: string
@@ -119,14 +356,83 @@ export type Database = {
           },
         ]
       }
+      contact_message_emails: {
+        Row: {
+          body_html: string | null
+          body_text: string | null
+          contact_message_id: string
+          created_at: string
+          delivery_status: string
+          direction: string
+          id: string
+          in_reply_to: string | null
+          internet_message_id: string | null
+          recipient_email: string
+          resend_email_id: string | null
+          sender_email: string
+          sent_by_profile_id: string | null
+          subject: string
+        }
+        Insert: {
+          body_html?: string | null
+          body_text?: string | null
+          contact_message_id: string
+          created_at?: string
+          delivery_status?: string
+          direction: string
+          id?: string
+          in_reply_to?: string | null
+          internet_message_id?: string | null
+          recipient_email: string
+          resend_email_id?: string | null
+          sender_email: string
+          sent_by_profile_id?: string | null
+          subject: string
+        }
+        Update: {
+          body_html?: string | null
+          body_text?: string | null
+          contact_message_id?: string
+          created_at?: string
+          delivery_status?: string
+          direction?: string
+          id?: string
+          in_reply_to?: string | null
+          internet_message_id?: string | null
+          recipient_email?: string
+          resend_email_id?: string | null
+          sender_email?: string
+          sent_by_profile_id?: string | null
+          subject?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "contact_message_emails_contact_message_id_fkey"
+            columns: ["contact_message_id"]
+            isOneToOne: false
+            referencedRelation: "contact_messages"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "contact_message_emails_sent_by_profile_id_fkey"
+            columns: ["sent_by_profile_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       contact_messages: {
         Row: {
           body: string
           category: string | null
+          closed_at: string | null
           created_at: string
           id: string
           internal_note: string | null
+          last_message_at: string
           read_at: string | null
+          replied_at: string | null
           sender_email: string
           sender_name: string | null
           status: string
@@ -136,10 +442,13 @@ export type Database = {
         Insert: {
           body: string
           category?: string | null
+          closed_at?: string | null
           created_at?: string
           id?: string
           internal_note?: string | null
+          last_message_at?: string
           read_at?: string | null
+          replied_at?: string | null
           sender_email: string
           sender_name?: string | null
           status?: string
@@ -149,10 +458,13 @@ export type Database = {
         Update: {
           body?: string
           category?: string | null
+          closed_at?: string | null
           created_at?: string
           id?: string
           internal_note?: string | null
+          last_message_at?: string
           read_at?: string | null
+          replied_at?: string | null
           sender_email?: string
           sender_name?: string | null
           status?: string
@@ -160,6 +472,125 @@ export type Database = {
           updated_at?: string
         }
         Relationships: []
+      }
+      delivery_drafts: {
+        Row: {
+          created_at: string
+          current_step: string
+          id: string
+          payload: Json
+          profile_id: string
+          status: string
+          submitted_order_id: string | null
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          current_step?: string
+          id?: string
+          payload?: Json
+          profile_id: string
+          status?: string
+          submitted_order_id?: string | null
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          current_step?: string
+          id?: string
+          payload?: Json
+          profile_id?: string
+          status?: string
+          submitted_order_id?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "delivery_drafts_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "delivery_drafts_submitted_order_id_fkey"
+            columns: ["submitted_order_id"]
+            isOneToOne: false
+            referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      file_attachments: {
+        Row: {
+          assistant_message_id: string | null
+          contact_email_id: string | null
+          content_type: string
+          created_at: string
+          evaluation_message_id: string | null
+          expires_at: string
+          id: string
+          original_name: string
+          r2_object_key: string
+          size_bytes: number
+          uploaded_by_profile_id: string | null
+        }
+        Insert: {
+          assistant_message_id?: string | null
+          contact_email_id?: string | null
+          content_type: string
+          created_at?: string
+          evaluation_message_id?: string | null
+          expires_at?: string
+          id?: string
+          original_name: string
+          r2_object_key: string
+          size_bytes: number
+          uploaded_by_profile_id?: string | null
+        }
+        Update: {
+          assistant_message_id?: string | null
+          contact_email_id?: string | null
+          content_type?: string
+          created_at?: string
+          evaluation_message_id?: string | null
+          expires_at?: string
+          id?: string
+          original_name?: string
+          r2_object_key?: string
+          size_bytes?: number
+          uploaded_by_profile_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "file_attachments_assistant_message_id_fkey"
+            columns: ["assistant_message_id"]
+            isOneToOne: false
+            referencedRelation: "assistant_messages"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "file_attachments_contact_email_id_fkey"
+            columns: ["contact_email_id"]
+            isOneToOne: false
+            referencedRelation: "contact_message_emails"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "file_attachments_evaluation_message_id_fkey"
+            columns: ["evaluation_message_id"]
+            isOneToOne: false
+            referencedRelation: "parcel_evaluation_messages"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "file_attachments_uploaded_by_profile_id_fkey"
+            columns: ["uploaded_by_profile_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       mission_events: {
         Row: {
@@ -510,6 +941,152 @@ export type Database = {
           },
         ]
       }
+      parcel_evaluation_messages: {
+        Row: {
+          author_profile_id: string | null
+          author_type: string
+          body: string
+          created_at: string
+          evaluation_id: string
+          id: string
+          message_kind: string
+          reply_to_message_id: string | null
+        }
+        Insert: {
+          author_profile_id?: string | null
+          author_type: string
+          body?: string
+          created_at?: string
+          evaluation_id: string
+          id?: string
+          message_kind?: string
+          reply_to_message_id?: string | null
+        }
+        Update: {
+          author_profile_id?: string | null
+          author_type?: string
+          body?: string
+          created_at?: string
+          evaluation_id?: string
+          id?: string
+          message_kind?: string
+          reply_to_message_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "parcel_evaluation_messages_author_profile_id_fkey"
+            columns: ["author_profile_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "parcel_evaluation_messages_evaluation_id_fkey"
+            columns: ["evaluation_id"]
+            isOneToOne: false
+            referencedRelation: "parcel_evaluations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "parcel_evaluation_messages_reply_to_message_id_fkey"
+            columns: ["reply_to_message_id"]
+            isOneToOne: false
+            referencedRelation: "parcel_evaluation_messages"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      parcel_evaluations: {
+        Row: {
+          assigned_at: string | null
+          assigned_operator_profile_id: string | null
+          cancelled_at: string | null
+          client_applied_at: string | null
+          client_final_view_id: string | null
+          client_profile_id: string
+          created_at: string
+          delivery_draft_id: string
+          estimate_trace: Json | null
+          finalized_at: string | null
+          height_cm: number | null
+          id: string
+          initial_description: string
+          length_cm: number | null
+          parcel_snapshot: Json
+          status: string
+          updated_at: string
+          warnings: string[]
+          weight_kg: number | null
+          width_cm: number | null
+        }
+        Insert: {
+          assigned_at?: string | null
+          assigned_operator_profile_id?: string | null
+          cancelled_at?: string | null
+          client_applied_at?: string | null
+          client_final_view_id?: string | null
+          client_profile_id: string
+          created_at?: string
+          delivery_draft_id: string
+          estimate_trace?: Json | null
+          finalized_at?: string | null
+          height_cm?: number | null
+          id?: string
+          initial_description: string
+          length_cm?: number | null
+          parcel_snapshot?: Json
+          status?: string
+          updated_at?: string
+          warnings?: string[]
+          weight_kg?: number | null
+          width_cm?: number | null
+        }
+        Update: {
+          assigned_at?: string | null
+          assigned_operator_profile_id?: string | null
+          cancelled_at?: string | null
+          client_applied_at?: string | null
+          client_final_view_id?: string | null
+          client_profile_id?: string
+          created_at?: string
+          delivery_draft_id?: string
+          estimate_trace?: Json | null
+          finalized_at?: string | null
+          height_cm?: number | null
+          id?: string
+          initial_description?: string
+          length_cm?: number | null
+          parcel_snapshot?: Json
+          status?: string
+          updated_at?: string
+          warnings?: string[]
+          weight_kg?: number | null
+          width_cm?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "parcel_evaluations_assigned_operator_profile_id_fkey"
+            columns: ["assigned_operator_profile_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "parcel_evaluations_client_profile_id_fkey"
+            columns: ["client_profile_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "parcel_evaluations_delivery_draft_id_fkey"
+            columns: ["delivery_draft_id"]
+            isOneToOne: false
+            referencedRelation: "delivery_drafts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       parcels: {
         Row: {
           approximate_size: string | null
@@ -614,6 +1191,7 @@ export type Database = {
       }
       profiles: {
         Row: {
+          avatar_url: string | null
           clerk_user_id: string
           created_at: string
           email: string
@@ -624,6 +1202,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          avatar_url?: string | null
           clerk_user_id: string
           created_at?: string
           email: string
@@ -634,6 +1213,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          avatar_url?: string | null
           clerk_user_id?: string
           created_at?: string
           email?: string
@@ -645,6 +1225,247 @@ export type Database = {
         }
         Relationships: []
       }
+      staff_access_assignments: {
+        Row: {
+          access_kind: string
+          activated_at: string | null
+          created_at: string
+          expires_at: string | null
+          external_sync_error: string | null
+          fallback_role: string
+          granted_by_profile_id: string | null
+          id: string
+          profile_id: string
+          reason: string
+          revoked_at: string | null
+          revoked_by_profile_id: string | null
+          revoked_reason: string | null
+          role: string
+          source: string
+          starts_at: string
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          access_kind: string
+          activated_at?: string | null
+          created_at?: string
+          expires_at?: string | null
+          external_sync_error?: string | null
+          fallback_role?: string
+          granted_by_profile_id?: string | null
+          id?: string
+          profile_id: string
+          reason: string
+          revoked_at?: string | null
+          revoked_by_profile_id?: string | null
+          revoked_reason?: string | null
+          role: string
+          source?: string
+          starts_at?: string
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          access_kind?: string
+          activated_at?: string | null
+          created_at?: string
+          expires_at?: string | null
+          external_sync_error?: string | null
+          fallback_role?: string
+          granted_by_profile_id?: string | null
+          id?: string
+          profile_id?: string
+          reason?: string
+          revoked_at?: string | null
+          revoked_by_profile_id?: string | null
+          revoked_reason?: string | null
+          role?: string
+          source?: string
+          starts_at?: string
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "staff_access_assignments_granted_by_profile_id_fkey"
+            columns: ["granted_by_profile_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "staff_access_assignments_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "staff_access_assignments_revoked_by_profile_id_fkey"
+            columns: ["revoked_by_profile_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      staff_access_sync_jobs: {
+        Row: {
+          assignment_id: string | null
+          attempts: number
+          available_at: string
+          completed_at: string | null
+          created_at: string
+          id: string
+          last_error: string | null
+          operation: string
+          payload: Json
+          profile_id: string
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          assignment_id?: string | null
+          attempts?: number
+          available_at?: string
+          completed_at?: string | null
+          created_at?: string
+          id?: string
+          last_error?: string | null
+          operation: string
+          payload?: Json
+          profile_id: string
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          assignment_id?: string | null
+          attempts?: number
+          available_at?: string
+          completed_at?: string | null
+          created_at?: string
+          id?: string
+          last_error?: string | null
+          operation?: string
+          payload?: Json
+          profile_id?: string
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "staff_access_sync_jobs_assignment_id_fkey"
+            columns: ["assignment_id"]
+            isOneToOne: false
+            referencedRelation: "staff_access_assignments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "staff_access_sync_jobs_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      support_tickets: {
+        Row: {
+          ai_summary: string | null
+          assigned_at: string | null
+          assigned_operator_profile_id: string | null
+          category: string
+          client_profile_id: string | null
+          closed_at: string | null
+          closed_by_profile_id: string | null
+          conversation_id: string
+          created_at: string
+          id: string
+          linked_order_id: string | null
+          priority: string
+          resolved_at: string | null
+          source: string
+          status: string
+          subject: string
+          updated_at: string
+        }
+        Insert: {
+          ai_summary?: string | null
+          assigned_at?: string | null
+          assigned_operator_profile_id?: string | null
+          category?: string
+          client_profile_id?: string | null
+          closed_at?: string | null
+          closed_by_profile_id?: string | null
+          conversation_id: string
+          created_at?: string
+          id?: string
+          linked_order_id?: string | null
+          priority?: string
+          resolved_at?: string | null
+          source: string
+          status?: string
+          subject: string
+          updated_at?: string
+        }
+        Update: {
+          ai_summary?: string | null
+          assigned_at?: string | null
+          assigned_operator_profile_id?: string | null
+          category?: string
+          client_profile_id?: string | null
+          closed_at?: string | null
+          closed_by_profile_id?: string | null
+          conversation_id?: string
+          created_at?: string
+          id?: string
+          linked_order_id?: string | null
+          priority?: string
+          resolved_at?: string | null
+          source?: string
+          status?: string
+          subject?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "support_tickets_assigned_operator_profile_id_fkey"
+            columns: ["assigned_operator_profile_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "support_tickets_client_profile_id_fkey"
+            columns: ["client_profile_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "support_tickets_closed_by_profile_id_fkey"
+            columns: ["closed_by_profile_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "support_tickets_conversation_id_fkey"
+            columns: ["conversation_id"]
+            isOneToOne: true
+            referencedRelation: "assistant_conversations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "support_tickets_linked_order_id_fkey"
+            columns: ["linked_order_id"]
+            isOneToOne: false
+            referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
@@ -654,6 +1475,10 @@ export type Database = {
       current_user_role: { Args: never; Returns: string }
       ensure_profile_exists: {
         Args: { p_clerk_user_id: string; p_email: string; p_full_name?: string }
+        Returns: string
+      }
+      refresh_profile_staff_role: {
+        Args: { p_profile_id: string }
         Returns: string
       }
     }

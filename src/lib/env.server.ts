@@ -32,7 +32,68 @@ export const serverEnv = {
 
   RESEND_API_KEY: opt(process.env.RESEND_API_KEY, ""),
 
-  RESEND_FROM_EMAIL: opt(process.env.RESEND_FROM_EMAIL, "noreply@skysend.ro"),
+  RESEND_FROM_EMAIL: opt(
+    process.env.RESEND_FROM_EMAIL,
+    "SkySend Support <support@skysend.ro>",
+  ),
+
+  RESEND_INBOUND_DOMAIN: opt(
+    process.env.RESEND_INBOUND_DOMAIN,
+    "nexaev.resend.app",
+  ),
+
+  RESEND_WEBHOOK_SECRET: opt(process.env.RESEND_WEBHOOK_SECRET, ""),
+
+  CLOUDFLARE_R2_ACCOUNT_ID: opt(process.env.CLOUDFLARE_R2_ACCOUNT_ID, ""),
+
+  CLOUDFLARE_R2_ACCESS_KEY_ID: opt(
+    process.env.CLOUDFLARE_R2_ACCESS_KEY_ID,
+    "",
+  ),
+
+  CLOUDFLARE_R2_SECRET_ACCESS_KEY: opt(
+    process.env.CLOUDFLARE_R2_SECRET_ACCESS_KEY,
+    "",
+  ),
+
+  CLOUDFLARE_R2_BUCKET: opt(process.env.CLOUDFLARE_R2_BUCKET, ""),
+
+  CLOUDFLARE_R2_ENDPOINT: opt(process.env.CLOUDFLARE_R2_ENDPOINT, ""),
+
+  CLERK_INTERNAL_ORGANIZATION_ID: opt(
+    process.env.CLERK_INTERNAL_ORGANIZATION_ID,
+    "",
+  ),
+
+  STAFF_ACCESS_ENFORCEMENT: opt(
+    process.env.STAFF_ACCESS_ENFORCEMENT,
+    "database",
+  ),
+
+  CLOUDFLARE_ACCESS_ENFORCED: opt(
+    process.env.CLOUDFLARE_ACCESS_ENFORCED,
+    "false",
+  ),
+
+  CLOUDFLARE_ACCESS_ACCOUNT_ID: opt(
+    process.env.CLOUDFLARE_ACCESS_ACCOUNT_ID,
+    "",
+  ),
+
+  CLOUDFLARE_ACCESS_GROUP_ID: opt(process.env.CLOUDFLARE_ACCESS_GROUP_ID, ""),
+
+  CLOUDFLARE_ACCESS_API_TOKEN: opt(process.env.CLOUDFLARE_ACCESS_API_TOKEN, ""),
+
+  CLOUDFLARE_ACCESS_TEAM_DOMAIN: opt(
+    process.env.CLOUDFLARE_ACCESS_TEAM_DOMAIN,
+    "",
+  ),
+
+  CLOUDFLARE_ACCESS_AUD: opt(process.env.CLOUDFLARE_ACCESS_AUD, ""),
+
+  ACCESS_TOTP_ENCRYPTION_KEY: opt(process.env.ACCESS_TOTP_ENCRYPTION_KEY, ""),
+
+  ACCESS_RECOVERY_CODE_PEPPER: opt(process.env.ACCESS_RECOVERY_CODE_PEPPER, ""),
 
   OVERPASS_API_URL: opt(
     process.env.OVERPASS_API_URL,

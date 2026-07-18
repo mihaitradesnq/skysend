@@ -24,9 +24,6 @@ export abstract class BaseRepository<TTable extends DBTableName> {
   ): Promise<RepositoryResult<DBRow<TTable> | null>> {
     try {
       const { data, error } = await this.supabase
-        // The typed client's `.from` overloads require a string literal of
-        // the table key. `tableName` is the literal at runtime but TS sees
-        // it as the generic `TTable`, so an explicit cast is required.
         .from(this.tableName as DBTableName)
         .select("*")
         .eq("id", id)
@@ -71,8 +68,6 @@ export abstract class BaseRepository<TTable extends DBTableName> {
     try {
       const { data: inserted, error } = await this.supabase
         .from(this.tableName as DBTableName)
-        // Same narrowing situation as in findOne — the row literal type
-        // varies per table, so we use the untyped overload via cast.
         .insert(data as never)
         .select("*")
         .single();

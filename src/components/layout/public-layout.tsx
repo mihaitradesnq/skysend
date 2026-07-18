@@ -12,23 +12,34 @@ import { cn } from "@/lib/utils";
 export function PublicLayout({ children }: { children: ReactNode }) {
   const pathname = usePathname();
   const isHomePage = pathname === "/";
+  const isStorytellingRoute = isHomePage || pathname === "/how-it-works";
 
-  // Smooth inertia scroll on the public surface only — keeps the page
-  // coasting briefly after a wheel gesture for a smoother reading feel.
-  useInertiaScroll();
+  useInertiaScroll(
+    !isStorytellingRoute || isHomePage,
+    isHomePage
+      ? { duration: 1000, maxGlideDistance: 220, glideMultiplier: 2 }
+      : undefined,
+  );
 
   return (
     <MotionProvider>
-      <div className="app-shell flex flex-col overflow-x-clip">
-        <PublicNavbar overlay={isHomePage} />
+      <div
+        className={cn(
+          "app-shell flex flex-col overflow-x-clip",
+          isStorytellingRoute && "bg-[#02070d] text-[#f2efe6]",
+        )}
+        data-storytelling-route={isStorytellingRoute ? "true" : undefined}
+        data-homepage={isHomePage ? "true" : undefined}
+      >
+        <PublicNavbar overlay={isStorytellingRoute} hideOnScroll={isHomePage} />
         <main
           id="main-content"
           className={cn(
             "flex-1",
-            !isHomePage && "pt-[calc(5rem_+_env(safe-area-inset-top))]",
+            !isStorytellingRoute && "pt-[calc(5rem_+_env(safe-area-inset-top))]",
           )}
         >
-          {isHomePage ? (
+          {isStorytellingRoute ? (
             children
           ) : (
             <AnimatePresence mode="wait" initial={false}>

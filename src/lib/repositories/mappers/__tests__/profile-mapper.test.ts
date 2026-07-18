@@ -16,6 +16,7 @@ function buildProfileRow(
     id: "00000000-0000-0000-0000-000000000001",
     clerk_user_id: "user_clerk_xyz",
     email: "test@example.com",
+    avatar_url: null,
     full_name: "Test User",
     role: "client",
     notification_preferences: { popup: true, email: true },
@@ -270,7 +271,7 @@ describe("parseNotificationPreferences", () => {
 });
 
 describe("parseProfileRole", () => {
-  it.each(["client", "admin", "operator", "suport"] as const)(
+  it.each(["client", "admin", "operator"] as const)(
     "accepts the canonical role %s",
     (role) => {
       expect(parseProfileRole(role)).toBe(role);

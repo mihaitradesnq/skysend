@@ -1,9 +1,10 @@
 
 
-export type ContactMessageStatus = "new" | "read" | "archived";
+export type ContactMessageStatus = "new" | "read" | "replied" | "archived";
 export const CONTACT_MESSAGE_STATUSES: readonly ContactMessageStatus[] = [
   "new",
   "read",
+  "replied",
   "archived",
 ] as const;
 

@@ -3,7 +3,8 @@
 import "server-only";
 
 import { NextResponse } from "next/server";
-import { createPublicContactTicket, publicContactSchema } from "@/lib/support/support-hub";
+import { createSiteMessage } from "@/lib/site-messages/server";
+import { publicContactSchema } from "@/lib/support/support-hub";
 
 
 function badRequest(reason: string) {
@@ -26,8 +27,8 @@ export async function POST(request: Request) {
   }
 
   try {
-    const ticket = await createPublicContactTicket(parsed.data);
-    return NextResponse.json({ ok: true, ticket }, { status: 201 });
+    const message = await createSiteMessage(parsed.data);
+    return NextResponse.json({ ok: true, message }, { status: 201 });
   } catch (error) {
     console.error("[contact-messages] support ticket insert failed:", error);
     return NextResponse.json(

@@ -3,14 +3,14 @@ import "server-only";
 
 import { currentUser } from "@clerk/nextjs/server";
 import { z } from "zod";
-import { getRoleFromClerkMetadata } from "@/lib/auth";
 import { sendSupportEmail } from "@/lib/email/support-email";
 import { ProfilesRepository } from "@/lib/repositories/profiles-repository";
 import { createAdminSupabaseClient } from "@/lib/supabase/admin";
-import type { ClerkRoleMetadata, UserRole } from "@/types/roles";
+import { getCurrentStaffAccess } from "@/lib/staff-access/server";
+import type { UserRole } from "@/types/roles";
 
 export const supportCategories = ["parcel_data", "delivery_tracking", "billing", "account", "technical", "general"] as const;
-export const supportStatuses = ["open", "assigned", "waiting_customer", "resolved", "closed"] as const;
+export const supportStatuses = ["open", "assigned", "waiting_customer", "closed"] as const;
 export type SupportCategory = (typeof supportCategories)[number];
 export type SupportStatus = (typeof supportStatuses)[number];
 export type SupportActor = "client" | "assistant" | "operator" | "system";
@@ -20,6 +20,7 @@ export type SupportIdentity = {
   profileId: string;
   email: string | null;
   name: string | null;
+  avatarUrl: string | null;
   role: UserRole;
 };
 
@@ -35,10 +36,9 @@ export async function getSupportIdentity(clerkUserId: string): Promise<SupportId
     ?? user?.emailAddresses[0]?.emailAddress
     ?? null;
   const fullName = user?.fullName || [user?.firstName, user?.lastName].filter(Boolean).join(" ").trim() || null;
-  const role = getRoleFromClerkMetadata(
-    (user?.publicMetadata ?? null) as ClerkRoleMetadata | null,
-    (user?.privateMetadata ?? null) as ClerkRoleMetadata | null,
-  ) ?? "client";
+  const avatarUrl = user?.imageUrl || null;
+  const access = await getCurrentStaffAccess();
+  const role = access?.role ?? "client";
   const profile = await profiles.findOrCreateByClerkUserId(clerkUserId, {
     clerkUserId,
     email: email ?? `${clerkUserId}@skysend.local`,
@@ -47,29 +47,34 @@ export async function getSupportIdentity(clerkUserId: string): Promise<SupportId
   });
   if (!profile.ok || !profile.data) return null;
 
+  await db().from("profiles").update({ avatar_url: avatarUrl }).eq("id", profile.data.id);
+
   return {
     clerkUserId,
     profileId: profile.data.id,
     email: email ?? profile.data.email ?? null,
-    name: profile.data.fullName,
-    role: getRoleFromClerkMetadata(
-      (user?.publicMetadata ?? null) as ClerkRoleMetadata | null,
-      (user?.privateMetadata ?? null) as ClerkRoleMetadata | null,
-    ) ?? profile.data.role,
+    name: fullName ?? profile.data.fullName,
+    avatarUrl,
+    role,
   };
 }
 
 export function isSupportOperator(role: UserRole | null | undefined) {
-  return role === "operator" || role === "suport";
+  return role === "operator" || role === "admin";
 }
 
 export function isAuthorizedSupportOperator(identity: SupportIdentity | null | undefined) {
-  return identity?.email?.trim().toLowerCase() === "operator@skysend.com";
+  if (!identity) return false;
+  return isSupportOperator(identity.role);
+}
+
+export function isSupportAdmin(identity: SupportIdentity | null | undefined) {
+  return identity?.role === "admin";
 }
 
 export function priorityForSupportText(text: string): "normal" | "high" | "urgent" {
   const value = text.normalize("NFD").replace(/\p{Diacritic}/gu, "").toLocaleLowerCase("ro-RO");
-  if (/(locker|recuperare|blocat|blocata|blocata|blocaj)/u.test(value)) return "urgent";
+  if (/(locker|recuperare|blocat|blocata|blocaj)/u.test(value)) return "urgent";
   if (/(plata esuata|plata respinsa|payment failed|card respins)/u.test(value)) return "high";
   return "normal";
 }
@@ -130,7 +135,7 @@ export async function listConversations(identity: SupportIdentity) {
 
 export async function getConversation(identity: SupportIdentity, conversationId: string) {
   const query = db().from("assistant_conversations")
-    .select("id,profile_id,contact_email,contact_name,title,mode,last_message_at,expires_at,created_at,support_tickets(id,source,subject,category,priority,status,assigned_operator_profile_id,ai_summary,linked_order_id,profiles:assigned_operator_profile_id(full_name,email)),assistant_messages(id,author_type,author_profile_id,body,created_at)")
+    .select("id,profile_id,contact_email,contact_name,title,mode,last_message_at,expires_at,created_at,client_profile:profile_id(id,full_name,email,avatar_url),support_tickets(id,source,subject,category,priority,status,assigned_operator_profile_id,client_profile_id,ai_summary,linked_order_id,assigned_operator:assigned_operator_profile_id(id,full_name,email,avatar_url)),assistant_messages(id,author_type,author_profile_id,body,created_at,author_profile:author_profile_id(id,full_name,email,avatar_url),file_attachments(id,original_name,content_type,size_bytes))")
     .eq("id", conversationId).gt("expires_at", new Date().toISOString());
   if (!isAuthorizedSupportOperator(identity)) query.eq("profile_id", identity.profileId);
   const { data, error } = await query.maybeSingle();
@@ -188,47 +193,79 @@ export async function handoffConversation(identity: SupportIdentity, conversatio
 }
 
 export const publicContactSchema = z.object({
-  email: z.string().trim().email().max(254), subject: z.string().trim().min(1).max(200),
-  category: z.string().trim().max(80).nullable().optional(), message: z.string().trim().min(1).max(5000),
+  email: z.string().trim().email().max(254),
+  subject: z.string().trim().min(1).max(200),
+  category: z.string().trim().max(80).nullable().optional(),
+  message: z.string().trim().min(1).max(5000),
+  name: z.string().trim().max(120).optional(),
 });
-
-export async function createPublicContactTicket(input: z.infer<typeof publicContactSchema>) {
-  await purgeExpiredSupportConversations();
-  const { data: conversation, error: conversationError } = await db().from("assistant_conversations").insert({
-    contact_email: input.email, title: input.subject, mode: "human_requested",
-  }).select("id").single();
-  if (conversationError) throw new Error(conversationError.message);
-  const { data: ticket, error: ticketError } = await db().from("support_tickets").insert({
-    conversation_id: conversation.id, source: "contact_form", subject: input.subject,
-    category: categoryFromContact(input.category), priority: priorityForSupportText(`${input.subject}\n${input.message}`), status: "open",
-  }).select("id").single();
-  if (ticketError) throw new Error(ticketError.message);
-  await db().from("assistant_messages").insert({ conversation_id: conversation.id, author_type: "client", body: input.message });
-  await audit(null, "support_ticket_created_from_contact", ticket.id, { conversationId: conversation.id });
-  return { conversationId: conversation.id as string, ticketId: ticket.id as string };
-}
 
 export async function listTickets(identity: SupportIdentity, queue: string) {
   if (!isAuthorizedSupportOperator(identity)) throw new Error("forbidden");
-  let query = db().from("support_tickets").select("id,conversation_id,source,subject,category,priority,status,assigned_operator_profile_id,client_profile_id,linked_order_id,created_at,updated_at,assistant_conversations(contact_email,contact_name,title),profiles:client_profile_id(full_name,email)").order("updated_at", { ascending: false }).limit(100);
-  if (queue === "mine") query = query.eq("assigned_operator_profile_id", identity.profileId);
+  let query = db().from("support_tickets")
+    .select("id,conversation_id,source,subject,category,priority,status,assigned_operator_profile_id,client_profile_id,linked_order_id,created_at,updated_at,assigned_at,assistant_conversations(contact_email,contact_name,title),client_profile:client_profile_id(id,full_name,email,avatar_url),assigned_operator:assigned_operator_profile_id(id,full_name,email,avatar_url)")
+    .order("updated_at", { ascending: false }).limit(100);
+  if (queue === "claimed") query = query.not("assigned_operator_profile_id", "is", null).eq("status", "assigned");
   else if (queue === "waiting_customer") query = query.eq("status", "waiting_customer");
-  else if (queue === "resolved") query = query.in("status", ["resolved", "closed"]);
-  else query = query.is("assigned_operator_profile_id", null).in("status", ["open", "assigned"]);
+  else if (queue === "closed") query = query.eq("status", "closed");
+  else query = query.is("assigned_operator_profile_id", null).neq("status", "closed");
   const { data, error } = await query;
   if (error) throw new Error(error.message);
   return data ?? [];
 }
 
-export async function updateTicket(identity: SupportIdentity, ticketId: string, input: { status?: SupportStatus; assignToMe?: boolean }) {
+export async function getTicketCounts(identity: SupportIdentity) {
   if (!isAuthorizedSupportOperator(identity)) throw new Error("forbidden");
-  const payload: Record<string, unknown> = {};
-  if (input.assignToMe) { payload.assigned_operator_profile_id = identity.profileId; payload.status = "assigned"; }
-  if (input.status) { payload.status = input.status; if (input.status === "resolved") payload.resolved_at = new Date().toISOString(); if (input.status === "closed") payload.closed_at = new Date().toISOString(); }
-  const { data, error } = await db().from("support_tickets").update(payload).eq("id", ticketId).select("*, assistant_conversations(contact_email), profiles:client_profile_id(email)").single();
+  const queues = ["unassigned", "claimed", "waiting_customer", "closed"] as const;
+  const values = await Promise.all(queues.map(async (queue) => [queue, (await listTickets(identity, queue)).length] as const));
+  return Object.fromEntries(values);
+}
+
+export async function updateTicket(identity: SupportIdentity, ticketId: string, action: "claim" | "release" | "close") {
+  if (!isAuthorizedSupportOperator(identity)) throw new Error("forbidden");
+  const { data: current, error: currentError } = await db().from("support_tickets")
+    .select("id,status,assigned_operator_profile_id,client_profile_id,conversation_id,assistant_conversations(contact_email),client_profile:client_profile_id(email)")
+    .eq("id", ticketId).maybeSingle();
+  if (currentError) throw new Error(currentError.message);
+  if (!current) throw new Error("ticket_not_found");
+  if (current.status === "closed") throw new Error("ticket_closed");
+
+  const now = new Date().toISOString();
+  let payload: Record<string, unknown>;
+  let query = db().from("support_tickets").update({});
+
+  if (action === "claim") {
+    if (current.assigned_operator_profile_id === identity.profileId) return current;
+    if (current.assigned_operator_profile_id) throw new Error("ticket_already_claimed");
+    payload = { assigned_operator_profile_id: identity.profileId, assigned_at: now, status: "assigned" };
+    query = db().from("support_tickets").update(payload).eq("id", ticketId).is("assigned_operator_profile_id", null);
+  } else if (action === "release") {
+    if (current.assigned_operator_profile_id !== identity.profileId && !isSupportAdmin(identity)) throw new Error("ticket_not_owned");
+    payload = { assigned_operator_profile_id: null, assigned_at: null, status: "open" };
+    query = db().from("support_tickets").update(payload).eq("id", ticketId).eq("assigned_operator_profile_id", current.assigned_operator_profile_id);
+  } else {
+    if (!current.assigned_operator_profile_id) throw new Error("ticket_not_claimed");
+    if (current.assigned_operator_profile_id !== identity.profileId && !isSupportAdmin(identity)) throw new Error("ticket_not_owned");
+    payload = { status: "closed", closed_at: now, closed_by_profile_id: identity.profileId };
+    query = db().from("support_tickets").update(payload).eq("id", ticketId).neq("status", "closed");
+  }
+
+  const { data, error } = await query.select("*").maybeSingle();
   if (error) throw new Error(error.message);
-  await audit(identity, "support_ticket_updated", ticketId, payload);
-  if (input.status) await notifyClient(data.client_profile_id, data.profiles?.email ?? data.assistant_conversations?.contact_email ?? null, "Actualizare solicitare SkySend", `Statusul solicitării tale este acum: ${input.status}.`, ticketId);
+  if (!data) throw new Error("ticket_changed");
+  if (action === "close") {
+    await db().from("assistant_conversations").update({ mode: "closed", last_message_at: now }).eq("id", current.conversation_id);
+  }
+  await audit(identity, `support_ticket_${action}`, ticketId, payload);
+  if (action === "close") {
+    await notifyClient(
+      current.client_profile_id,
+      current.client_profile?.email ?? current.assistant_conversations?.contact_email ?? null,
+      "Solicitare SkySend închisă",
+      "Operatorul a marcat solicitarea ca rezolvată. Conversația rămâne disponibilă în istoric.",
+      ticketId,
+    );
+  }
   return data;
 }
 
@@ -238,13 +275,23 @@ export async function addSupportMessage(identity: SupportIdentity, conversationI
   const staff = isAuthorizedSupportOperator(identity);
   const ticket = Array.isArray(conversation.support_tickets) ? conversation.support_tickets[0] : conversation.support_tickets;
   if (!ticket) throw new Error("ticket_not_found");
+  if (ticket.status === "closed" || conversation.mode === "closed") throw new Error("ticket_closed");
+  if (staff && !ticket.assigned_operator_profile_id) throw new Error("ticket_not_claimed");
+  if (staff && ticket.assigned_operator_profile_id !== identity.profileId && !isSupportAdmin(identity)) throw new Error("ticket_read_only");
+  if (!staff && conversation.profile_id !== identity.profileId) throw new Error("forbidden");
+
   const authorType: SupportActor = staff ? "operator" : "client";
-  const { error } = await db().from("assistant_messages").insert({ conversation_id: conversationId, author_type: authorType, author_profile_id: identity.profileId, body });
+  const { data: message, error } = await db().from("assistant_messages").insert({
+    conversation_id: conversationId,
+    author_type: authorType,
+    author_profile_id: identity.profileId,
+    body,
+  }).select("id,author_type,author_profile_id,body,created_at").single();
   if (error) throw new Error(error.message);
   const nextStatus: SupportStatus = staff ? "waiting_customer" : (ticket.assigned_operator_profile_id ? "assigned" : "open");
-  await db().from("support_tickets").update({ status: nextStatus }).eq("id", ticket.id);
-  await db().from("assistant_conversations").update({ mode: "human_active", last_message_at: new Date().toISOString() }).eq("id", conversationId);
+  await db().from("support_tickets").update({ status: nextStatus }).eq("id", ticket.id).neq("status", "closed");
+  await db().from("assistant_conversations").update({ mode: "human_active", last_message_at: new Date().toISOString() }).eq("id", conversationId).neq("mode", "closed");
   await audit(identity, staff ? "support_operator_message" : "support_client_message", ticket.id);
   if (staff) await notifyClient(ticket.client_profile_id, conversation.contact_email, "Ai un răspuns de la SkySend", "Un operator ți-a răspuns. Deschide SkySend pentru a continua conversația.", ticket.id);
-  return { status: nextStatus };
+  return { status: nextStatus, message };
 }

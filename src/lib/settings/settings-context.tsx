@@ -26,10 +26,6 @@ import { translate, type TranslationKey } from "@/lib/settings/dictionaries";
 import { effectiveThemeForPathname } from "@/lib/settings/theme-route";
 import { LoadingOverlay } from "@/components/shared/preferences/loading-overlay";
 
-/**
- * Custom event used to broadcast preference changes to other subscribers in
- * the same tab (the storage event only fires across tabs).
- */
 const PREFS_CHANGED_EVENT = "skysend:user-prefs-changed";
 
 export interface SettingsContextValue {
@@ -37,8 +33,6 @@ export interface SettingsContextValue {
   language: Language;
   currency: CurrencyCode;
   theme: Theme;
-  /** Theme that actually renders on the current route. On the public marketing
-   *  site this is always "dark" regardless of the stored preference. */
   effectiveTheme: Theme;
   locale: string;
   setLanguage: (next: Language) => void;
@@ -46,7 +40,6 @@ export interface SettingsContextValue {
   setTheme: (next: Theme) => void;
   t: (key: TranslationKey) => string;
   formatCurrency: (amountMinor: number) => string;
-  /** True while a language/theme switch overlay is showing. */
   isSwitching: boolean;
 }
 
@@ -93,8 +86,6 @@ function persistPrefs(prefs: UserPrefs) {
   try {
     const serialized = JSON.stringify(prefs);
     window.localStorage.setItem(PREFS_STORAGE_KEY, serialized);
-    // Mirror to a cookie so server components / generateMetadata can read the
-    // active language for localized metadata. SameSite=Lax, 1 year.
     document.cookie = `${PREFS_COOKIE_NAME}=${encodeURIComponent(
       serialized,
     )}; path=/; max-age=31536000; samesite=lax`;
@@ -127,32 +118,26 @@ function disableThemeTransition() {
 }
 
 export function SettingsProvider({ children }: { children: ReactNode }) {
-  // Initial render intentionally mirrors the server default to avoid
-  // hydration mismatches. The anti-FOUC script in the root layout applies
-  // the persisted values before the first paint.
   const [prefs, setPrefs] = useState<UserPrefs>(DEFAULT_PREFS);
   const [isSwitching, setIsSwitching] = useState(false);
   const switchingTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const initialHydrated = useRef(false);
   const pathname = usePathname();
 
-  // Hydrate from localStorage after mount; sync document classes/lang.
   useEffect(() => {
-    const stored = readPrefsFromStorage();
-    setPrefs(stored);
-    applyPrefsToDocument(stored);
-    initialHydrated.current = true;
+    const hydrationTimer = window.setTimeout(() => {
+      const stored = readPrefsFromStorage();
+      setPrefs(stored);
+      applyPrefsToDocument(stored);
+      initialHydrated.current = true;
+    }, 0);
+    return () => window.clearTimeout(hydrationTimer);
   }, []);
 
-  // Re-apply on client-side navigation: the public marketing site is always
-  // dark, the app surface honours the stored preference. Using the pathname
-  // as a dep means a route change between public and app routes instantly
-  // snaps the theme without a flashing transition.
   useEffect(() => {
     applyPrefsToDocument(prefs);
   }, [pathname, prefs]);
 
-  // Cross-tab sync.
   useEffect(() => {
     function handleStorage(event: StorageEvent) {
       if (event.key !== PREFS_STORAGE_KEY) return;

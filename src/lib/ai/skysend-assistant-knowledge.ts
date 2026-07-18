@@ -5,14 +5,6 @@ export type AssistantKnowledgeChunk = {
   href?: string;
 };
 
-/**
- * Lightweight retrieval corpus for the SkySend assistant.
- *
- * The canonical human-readable source is the "Ghid operațional și de produs"
- * section in README.md. These concise chunks keep that documentation available
- * to a route handler in every production deployment without relying on runtime
- * filesystem access.
- */
 export const assistantKnowledge: readonly AssistantKnowledgeChunk[] = [
   {
     id: "delivery-flow",

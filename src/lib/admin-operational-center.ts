@@ -6,7 +6,6 @@ import {
 } from "@/lib/admin-data";
 import { getAdminContactMessageDetails } from "@/lib/admin-contact-messages";
 import { getAdminLockerRecoveryDetails } from "@/lib/admin-locker-recoveries";
-import { readOperatorParcelEvaluations } from "@/lib/operator-parcel-evaluations";
 import {
   calculateHeadingDegrees,
   interpolateGeoPoint,
@@ -28,6 +27,7 @@ import type {
   OperationalPlatformSnapshot,
 } from "@/types/admin-operational";
 import type { OrderStatus } from "@/types/domain";
+import type { OperatorParcelEvaluation } from "@/types/operator-parcel-evaluation";
 import type { GeoPoint } from "@/types/service-area";
 
 const activeOrderStatuses: readonly OrderStatus[] = [
@@ -298,7 +298,7 @@ function mapContactMessageToOperational(message: ReturnType<typeof getAdminConta
     categoryLabel: message.categoryLabel,
     statusLabel: message.statusLabel,
     createdAt: message.createdAt,
-    href: `/admin/contact-messages?messageId=${encodeURIComponent(message.id)}`,
+    href: `/admin/site-messages?messageId=${encodeURIComponent(message.id)}`,
   };
 }
 
@@ -362,7 +362,7 @@ export function getAdminOperationalCenterData(
   const contactMessages = allContactMessages
     .filter((message) => message.status === "new")
     .map(mapContactMessageToOperational);
-  const parcelEvaluations = readOperatorParcelEvaluations();
+  const parcelEvaluations: OperatorParcelEvaluation[] = [];
   const platform = override?.settings
     ? {
         status: override.settings.platformStatus,

@@ -8,7 +8,7 @@ import {
   useUser,
 } from "@clerk/nextjs";
 import { roleRoutingPaths } from "@/constants/roles";
-import { getDemoAdminRoleFromEmail, getRoleFromClerkMetadata } from "@/lib/auth";
+import { getRoleFromClerkMetadata } from "@/lib/auth";
 import { isClerkFrontendConfigured } from "@/lib/clerk-config";
 import { Button } from "@/components/ui/button";
 import type { ClerkRoleMetadata, UserRole } from "@/types/roles";
@@ -23,7 +23,6 @@ const clerkEnabled = isClerkFrontendConfigured();
 function getAccountSettingsUrl(role: UserRole | null | undefined) {
   switch (role) {
     case "admin":
-    case "suport":
       return "/admin/settings";
     case "operator":
       return "/operator";
@@ -52,13 +51,10 @@ function ClerkAuthControlsInner({
   onAction?: () => void;
 }) {
   const { user } = useUser();
-  const primaryEmail = user?.primaryEmailAddress?.emailAddress ?? null;
   const role =
     getRoleFromClerkMetadata(
       (user?.publicMetadata ?? null) as ClerkRoleMetadata | null,
-    ) ??
-    getDemoAdminRoleFromEmail(primaryEmail) ??
-    "client";
+    ) ?? "client";
   const accountSettingsUrl = getAccountSettingsUrl(role);
 
   return (

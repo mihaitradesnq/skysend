@@ -764,9 +764,8 @@ export function CreateDeliveryShell() {
   const [pendingPaymentOrderId, setPendingPaymentOrderId] = useState<string | null>(
     null,
   );
-  const [deliverySessionId] = useState(() =>
-    createLocalOrderId(new Date().toISOString()),
-  );
+  const [deliverySessionId, setDeliverySessionId] = useState("");
+  const [deliveryDraftHydrated, setDeliveryDraftHydrated] = useState(false);
   const [operationalSettings, setOperationalSettings] =
     useState<OperationalSettings>(() => getAdminOperationalSettings());
   const [reviewGateMessage, setReviewGateMessage] = useState<string | null>(null);
@@ -839,6 +838,60 @@ export function CreateDeliveryShell() {
       window.removeEventListener("storage", refreshOperationalSettings);
     };
   }, []);
+
+  useEffect(() => {
+    let active = true;
+    async function hydrateDeliveryDraft() {
+      try {
+        const response = await fetch("/api/client/delivery-draft", { cache: "no-store" });
+        const result = await response.json();
+        if (!response.ok || !active) return;
+        const draft = result.draft as { id: string; current_step: CreateDeliveryFlowStep; payload?: Record<string, unknown> };
+        const payload = draft.payload ?? {};
+        setDeliverySessionId(draft.id);
+        if (payload.routeAddresses) setRouteAddresses(payload.routeAddresses as typeof routeAddresses);
+        if (payload.candidatePoints) setCandidatePoints(payload.candidatePoints as CandidatePointCollection);
+        if (payload.selectedCandidatePoints) setSelectedCandidatePoints(payload.selectedCandidatePoints as SelectedCandidatePointCollection);
+        if (payload.parcelDraft) setParcelDraft(payload.parcelDraft as CreateDeliveryParcelDraft);
+        if (payload.urgency === "standard" || payload.urgency === "priority" || payload.urgency === "scheduled") setUrgency(payload.urgency);
+        if (typeof payload.scheduledDate === "string") setScheduledDate(payload.scheduledDate);
+        if (typeof payload.scheduledTime === "string") setScheduledTime(payload.scheduledTime);
+        const evaluationStatus = result.evaluation?.status as string | undefined;
+        const evaluationRequiresParcelStep = Boolean(evaluationStatus && evaluationStatus !== "cancelled");
+        setFlowStep(evaluationRequiresParcelStep ? "parcel" : draft.current_step);
+      } catch (error) {
+        console.error("[create-delivery] draft hydration failed", error);
+      } finally {
+        if (active) setDeliveryDraftHydrated(true);
+      }
+    }
+    void hydrateDeliveryDraft();
+    return () => { active = false; };
+  }, []);
+
+  useEffect(() => {
+    if (!deliveryDraftHydrated || !deliverySessionId) return;
+    const timer = window.setTimeout(() => {
+      void fetch("/api/client/delivery-draft", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          id: deliverySessionId,
+          currentStep: flowStep,
+          payload: {
+            routeAddresses,
+            candidatePoints,
+            selectedCandidatePoints,
+            parcelDraft,
+            urgency,
+            scheduledDate,
+            scheduledTime,
+          },
+        }),
+      });
+    }, 800);
+    return () => window.clearTimeout(timer);
+  }, [candidatePoints, deliveryDraftHydrated, deliverySessionId, flowStep, parcelDraft, routeAddresses, scheduledDate, scheduledTime, selectedCandidatePoints, urgency]);
 
   useEffect(() => {
 
@@ -1699,16 +1752,16 @@ export function CreateDeliveryShell() {
     async (
       field: CreateDeliveryAddressField,
       point: GeoPoint,
+      signal: AbortSignal,
     ): Promise<boolean> => {
-
-      if (isReverseGeocoding) {
-        return false;
-      }
-
-      setIsReverseGeocoding(true);
-
       try {
-        const suggestion = await fetchGeoapifyReverseGeocodedSuggestion(point);
+        const suggestion = await fetchGeoapifyReverseGeocodedSuggestion(point, {
+          signal,
+        });
+
+        if (signal.aborted) {
+          return false;
+        }
 
         if (!suggestion) {
           setMapSelectionFeedback({
@@ -1734,6 +1787,10 @@ export function CreateDeliveryShell() {
             }
           : reverseGeocodedDraft;
 
+        if (signal.aborted) {
+          return false;
+        }
+
         syncResolvedAddress(
           field,
           nextDraft,
@@ -1750,6 +1807,10 @@ export function CreateDeliveryShell() {
 
         return true;
       } catch {
+        if (signal.aborted) {
+          return false;
+        }
+
         setMapSelectionFeedback({
           tone: "destructive",
           title: "Selectarea pe hartă nu este disponibilă momentan",
@@ -1757,11 +1818,9 @@ export function CreateDeliveryShell() {
             "Geocodarea inversă nu a putut fi finalizată acum. Încearcă din nou sau folosește câmpul de căutare.",
         });
         return false;
-      } finally {
-        setIsReverseGeocoding(false);
       }
     },
-    [isReverseGeocoding, routeAddresses, syncResolvedAddress],
+    [routeAddresses, syncResolvedAddress],
   );
 
   const handleMapPointPreview = useCallback((point: GeoPoint) => {
@@ -2044,6 +2103,14 @@ export function CreateDeliveryShell() {
       notifyTrackingAvailable(createdOrder, notificationContext);
       notifyPaymentConfirmed(createdOrder, notificationContext);
 
+      if (deliverySessionId) {
+        await fetch("/api/client/delivery-draft", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ id: deliverySessionId, action: "submit" }),
+        });
+      }
+
       router.push("/client/active-delivery");
     } catch {
       setSubmitError(
@@ -2301,7 +2368,7 @@ export function CreateDeliveryShell() {
     </div>
   );
   const compactRouteStepper = (
-    <div className="max-w-full rounded-full border border-border/70 bg-background/82 p-1.5 shadow-[var(--elevation-soft)] backdrop-blur-md">
+    <div className="max-w-full rounded-full border border-transparent bg-transparent p-0 shadow-none backdrop-blur-none sm:border-border/70 sm:bg-background/82 sm:p-1.5 sm:shadow-[var(--elevation-soft)] sm:backdrop-blur-md">
       <div className="flex min-h-10 items-center gap-2.5 rounded-full bg-primary px-3.5 text-sm font-semibold leading-tight text-primary-foreground sm:hidden">
         <span className="flex size-6 shrink-0 items-center justify-center rounded-full border border-primary-foreground/35 text-xs">
           {visibleStepIndex + 1}
@@ -2369,7 +2436,7 @@ export function CreateDeliveryShell() {
   );
 
   const parcelActions = (
-    <div className="fixed inset-x-0 bottom-[var(--bottom-nav-height)] z-40 flex flex-row items-center gap-3 bg-background px-4 pb-2 pt-2 shadow-[0_-18px_34px_-26px_rgba(0,0,0,0.9)] sm:sticky sm:bottom-0 sm:z-20 sm:flex-row sm:items-center sm:justify-between sm:rounded-[calc(var(--radius)+0.5rem)] sm:border sm:border-border/80 sm:bg-background sm:px-5 sm:pb-4 sm:pt-4">
+    <div className="fixed inset-x-0 bottom-[var(--bottom-nav-safe)] z-40 flex flex-row items-center gap-3 bg-transparent px-4 pb-2 pt-2 shadow-none sm:sticky sm:bottom-0 sm:z-20 sm:flex-row sm:items-center sm:justify-between sm:rounded-[calc(var(--radius)+0.5rem)] sm:border sm:border-border/80 sm:bg-background sm:px-5 sm:pb-4 sm:pt-4 sm:shadow-[0_-18px_34px_-26px_rgba(0,0,0,0.9)]">
       <AppButton
         type="button"
         variant="outline"
@@ -2393,7 +2460,7 @@ export function CreateDeliveryShell() {
   );
 
   const optionsActions = (
-    <div className="fixed inset-x-0 bottom-[var(--bottom-nav-height)] z-40 flex flex-row items-center gap-3 bg-background px-4 pb-2 pt-2 shadow-[0_-18px_34px_-26px_rgba(0,0,0,0.9)] sm:sticky sm:bottom-0 sm:z-20 sm:flex-row sm:items-center sm:justify-between sm:rounded-[calc(var(--radius)+0.5rem)] sm:border sm:border-border/80 sm:bg-background sm:px-5 sm:pb-4 sm:pt-4">
+    <div className="fixed inset-x-0 bottom-[var(--bottom-nav-safe)] z-40 flex flex-row items-center gap-3 bg-transparent px-4 pb-2 pt-2 shadow-none sm:sticky sm:bottom-0 sm:z-20 sm:flex-row sm:items-center sm:justify-between sm:rounded-[calc(var(--radius)+0.5rem)] sm:border sm:border-border/80 sm:bg-background sm:px-5 sm:pb-4 sm:pt-4 sm:shadow-[0_-18px_34px_-26px_rgba(0,0,0,0.9)]">
       <AppButton
         type="button"
         variant="outline"
@@ -2418,9 +2485,9 @@ export function CreateDeliveryShell() {
 
   if (flowStep === "review" && canContinue) {
     return (
-      <section className="app-container flex min-h-dvh flex-col gap-4 pb-[calc(2rem_+_env(safe-area-inset-bottom))] pt-0 sm:gap-6 sm:pt-[8.5rem] lg:pb-12 lg:pt-[9rem]">
+      <section className="app-container flex h-dvh min-h-0 flex-col gap-4 overflow-y-auto overscroll-contain pb-[calc(var(--bottom-nav-safe)_+_1.5rem)] pt-0 sm:gap-6 sm:pb-10 sm:pt-[8.5rem] lg:pt-[9rem]">
         {isMobile ? (
-          <div className="sticky top-0 z-30 bg-background/95 pb-3 pt-[calc(env(safe-area-inset-top)_+_0.5rem)] backdrop-blur-md">
+          <div className="sticky top-0 z-30 pb-3 pl-[env(safe-area-inset-left)] pr-[calc(4rem_+_env(safe-area-inset-right))] pt-[calc(env(safe-area-inset-top)_+_0.5rem)]">
             {compactRouteStepper}
           </div>
         ) : null}
@@ -2746,12 +2813,12 @@ export function CreateDeliveryShell() {
         className={
           flowStep === "route"
             ? "h-dvh min-h-svh"
-            : "app-container flex h-dvh min-h-0 flex-col gap-4 overflow-y-auto overscroll-contain pb-[calc(2rem_+_env(safe-area-inset-bottom))] pt-0 sm:gap-6 sm:pt-[8.5rem] lg:pb-10 lg:pt-[9rem]"
+            : "app-container flex h-dvh min-h-0 flex-col gap-4 overflow-y-auto overscroll-contain pb-[calc(var(--bottom-nav-safe)_+_5.25rem)] pt-0 sm:gap-6 sm:pb-10 sm:pt-[8.5rem] lg:pt-[9rem]"
         }
       >
         {flowStep !== "route" ? (
           isMobile ? (
-            <div className="sticky top-0 z-30 bg-background/95 pb-3 pt-[calc(env(safe-area-inset-top)_+_0.5rem)] backdrop-blur-md">
+            <div className="sticky top-0 z-30 pb-3 pl-[env(safe-area-inset-left)] pr-[calc(4rem_+_env(safe-area-inset-right))] pt-[calc(env(safe-area-inset-top)_+_0.5rem)]">
               {compactRouteStepper}
             </div>
           ) : (
@@ -2985,21 +3052,20 @@ export function CreateDeliveryShell() {
 
             {flowStep === "parcel" ? (
               <>
-                <SectionCard
-                  size="sm"
-                  eyebrow="Colet"
-                  title="Detalii colet"
-                  description="Alege Asistent colet sau introducere manuală. Greutatea, potrivirea dronei și prețul se actualizează odată cu profilul coletului."
-                >
+                {deliverySessionId ? (
                   <CreateDeliveryParcelSection
                     sessionId={deliverySessionId}
                     parcel={parcelDraft}
                     guidance={parcelGuidance}
-                    pricingSnapshot={pricingSnapshot}
                     onChange={handleParcelChange}
                     onAssistantUpdate={handleApplyAssistant}
                   />
-                </SectionCard>
+                ) : (
+                  <div className="flex min-h-40 items-center justify-center gap-2 rounded-2xl border border-dashed text-sm text-muted-foreground">
+                    <LoaderCircle className="size-4 animate-spin" />
+                    Se încarcă schița livrării…
+                  </div>
+                )}
                 {parcelActions}
               </>
             ) : null}
@@ -3219,16 +3285,16 @@ export function CreateDeliveryShell() {
                 </SectionCard>
 
                 <Card className="overflow-hidden">
-                  <CardContent className="grid gap-5 p-4 sm:p-5">
-                    <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-                      <div className="grid gap-2">
+                  <CardContent className="p-0">
+                    <div className="flex flex-col gap-3 border-b border-border/70 p-4 sm:flex-row sm:items-center sm:justify-between sm:px-5">
+                      <div className="flex flex-wrap items-center gap-3">
                         <StatusBadge
                           label="Configurație recomandată"
                           tone="info"
                           className="w-fit"
                         />
-                        <p className="max-w-3xl text-sm leading-6 text-muted-foreground">
-                          Configurația este aleasă automat din profilul confirmat al coletului. Nu există selecție manuală de dronă.
+                        <p className="text-sm text-muted-foreground">
+                          Aleasă automat din profilul confirmat al coletului.
                         </p>
                       </div>
                       {selectedDeliveryConfiguration ? (
@@ -3241,83 +3307,65 @@ export function CreateDeliveryShell() {
                     </div>
 
                     {selectedDeliveryConfiguration && confirmedParcelProfile ? (
-                      <div className="grid gap-4">
-                        <div className="rounded-[calc(var(--radius)+0.65rem)] border border-primary/30 bg-primary/10 p-4 sm:p-5">
-                          <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
-                            <div className="min-w-0">
-                              <p className="text-xs font-semibold uppercase tracking-[0.14em] text-primary">
-                                Modul selectat
-                              </p>
-                              <h3 className="mt-2 font-heading text-2xl tracking-tight text-foreground sm:text-3xl">
-                                {selectedDeliveryConfiguration.moduleName}
-                              </h3>
-                              <p className="mt-3 max-w-3xl text-sm leading-6 text-muted-foreground">
-                                {configurationSelectionReason}
-                              </p>
-                            </div>
-                          </div>
+                      <div>
+                        <div className="px-4 py-4 sm:px-5 sm:py-5">
+                          <p className="text-xs font-semibold uppercase tracking-[0.14em] text-primary">
+                            Modul selectat
+                          </p>
+                          <h3 className="mt-1.5 font-heading text-2xl tracking-tight text-foreground sm:text-3xl">
+                            {selectedDeliveryConfiguration.moduleName}
+                          </h3>
+                          <p className="mt-2 max-w-3xl text-sm leading-6 text-muted-foreground">
+                            {configurationSelectionReason}
+                          </p>
                         </div>
 
-                        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-                          <div className="rounded-[calc(var(--radius)+0.45rem)] border border-border/75 bg-background/70 p-4">
+                        <div className="grid border-t border-border/70 lg:grid-cols-3">
+                          <div className="px-4 py-4 sm:px-5 lg:border-r lg:border-border/70">
                             <p className="text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">
                               Capacitate
                             </p>
-                            <div className="mt-3 flex flex-wrap gap-2">
-                              <span className="rounded-full bg-secondary/60 px-3 py-1.5 text-xs font-medium text-foreground">
-                                Sarcină {confirmedPayloadKg.toFixed(1)} / {selectedDeliveryConfiguration.maxPayloadKg} kg
-                              </span>
-                              <span className="rounded-full bg-secondary/60 px-3 py-1.5 text-xs font-medium text-foreground">
-                                Volum {formatVolumeLiters(confirmedVolumeLiters)} / {selectedDeliveryConfiguration.maxVolumeLiters} L
-                              </span>
-                              <span className="rounded-full bg-secondary/60 px-3 py-1.5 text-xs font-medium text-foreground">
-                                {confirmedDimensions
-                                  ? `${formatDimensionsCm(confirmedDimensions)} din ${formatDimensionsCm(selectedDeliveryConfiguration.maxDimensionsCm)}`
-                                  : formatDimensionsCm(selectedDeliveryConfiguration.maxDimensionsCm)}
-                              </span>
-                            </div>
+                            <dl className="mt-3 grid gap-2 text-sm">
+                              <div className="flex justify-between gap-4"><dt className="text-muted-foreground">Sarcină</dt><dd className="text-right font-medium text-foreground">{confirmedPayloadKg.toFixed(1)} / {selectedDeliveryConfiguration.maxPayloadKg} kg</dd></div>
+                              <div className="flex justify-between gap-4"><dt className="text-muted-foreground">Volum</dt><dd className="text-right font-medium text-foreground">{formatVolumeLiters(confirmedVolumeLiters)} / {selectedDeliveryConfiguration.maxVolumeLiters} L</dd></div>
+                              <div className="flex justify-between gap-4"><dt className="text-muted-foreground">Dimensiuni</dt><dd className="max-w-[65%] text-right font-medium text-foreground">{confirmedDimensions ? `${formatDimensionsCm(confirmedDimensions)} / ${formatDimensionsCm(selectedDeliveryConfiguration.maxDimensionsCm)}` : formatDimensionsCm(selectedDeliveryConfiguration.maxDimensionsCm)}</dd></div>
+                            </dl>
                           </div>
 
-                          <div className="rounded-[calc(var(--radius)+0.45rem)] border border-border/75 bg-background/70 p-4">
+                          <div className="border-t border-border/70 px-4 py-4 sm:px-5 lg:border-r lg:border-t-0">
                             <p className="text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">
                               Protecție
                             </p>
-                            <div className="mt-3 flex flex-wrap gap-2">
-                              <span className="rounded-full bg-secondary/60 px-3 py-1.5 text-xs font-medium text-foreground">
-                                {temperatureProtectionLabels[selectedDeliveryConfiguration.temperatureProtection]}
-                              </span>
-                              <span className="rounded-full bg-secondary/60 px-3 py-1.5 text-xs font-medium text-foreground">
-                                {securityLevelLabels[selectedDeliveryConfiguration.securityLevel]}
-                              </span>
-                              <span className="rounded-full bg-secondary/60 px-3 py-1.5 text-xs font-medium text-foreground">
-                                {shockProtectionLabels[selectedDeliveryConfiguration.shockProtection]} / {confirmedParcelProfile.fragility}
-                              </span>
-                            </div>
+                            <dl className="mt-3 grid gap-2 text-sm">
+                              <div className="flex justify-between gap-4"><dt className="text-muted-foreground">Temperatură</dt><dd className="text-right font-medium text-foreground">{temperatureProtectionLabels[selectedDeliveryConfiguration.temperatureProtection]}</dd></div>
+                              <div className="flex justify-between gap-4"><dt className="text-muted-foreground">Securitate</dt><dd className="text-right font-medium text-foreground">{securityLevelLabels[selectedDeliveryConfiguration.securityLevel]}</dd></div>
+                              <div className="flex justify-between gap-4"><dt className="text-muted-foreground">Șoc</dt><dd className="text-right font-medium text-foreground">{shockProtectionLabels[selectedDeliveryConfiguration.shockProtection]} / {confirmedParcelProfile.fragility}</dd></div>
+                            </dl>
                           </div>
 
-                          <div className="rounded-[calc(var(--radius)+0.45rem)] border border-border/75 bg-background/70 p-4">
+                          <div className="border-t border-border/70 px-4 py-4 sm:px-5 lg:border-t-0">
                             <p className="text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">
                               Livrare
                             </p>
-                            <div className="mt-3 grid gap-2 text-sm">
+                            <dl className="mt-3 grid gap-2 text-sm">
                               <div className="flex items-center justify-between gap-3">
-                                <span className="text-muted-foreground">Impact preț</span>
-                                <span className="font-medium text-foreground">
+                                <dt className="text-muted-foreground">Impact preț</dt>
+                                <dd className="font-medium text-foreground">
                                   {formatCurrencyMinor(deliveryConfigurationPriceImpactMinor)}
-                                </span>
+                                </dd>
                               </div>
                               <div className="flex items-center justify-between gap-3">
-                                <span className="text-muted-foreground">ETA</span>
-                                <span className="font-medium text-foreground">
+                                <dt className="text-muted-foreground">ETA</dt>
+                                <dd className="font-medium text-foreground">
                                   {estimatedWindow.min} - {estimatedWindow.max} min
-                                </span>
+                                </dd>
                               </div>
-                            </div>
+                            </dl>
                           </div>
                         </div>
                       </div>
                     ) : (
-                      <div className="rounded-[calc(var(--radius)+0.375rem)] border border-border/80 bg-secondary/35 px-4 py-4 text-sm leading-6 text-muted-foreground">
+                      <div className="px-4 py-4 text-sm leading-6 text-muted-foreground sm:px-5">
                         {configurationSelectionReason}
                       </div>
                     )}

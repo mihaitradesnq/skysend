@@ -6,10 +6,10 @@ import type { GeoPoint } from "@/types/service-area";
 const PITESTI_CENTER: GeoPoint = { latitude: 44.8565, longitude: 24.8692 };
 
 const PITESTI_BBOX: GeoPoint[] = [
-  { latitude: 44.82, longitude: 24.82 }, // SW
-  { latitude: 44.82, longitude: 24.92 }, // SE
-  { latitude: 44.90, longitude: 24.92 }, // NE
-  { latitude: 44.90, longitude: 24.82 }, // NW
+  { latitude: 44.82, longitude: 24.82 },
+  { latitude: 44.82, longitude: 24.92 },
+  { latitude: 44.90, longitude: 24.92 },
+  { latitude: 44.90, longitude: 24.82 },
 ];
 
 const U_SHAPE: GeoPoint[] = [

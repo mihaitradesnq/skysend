@@ -1,5 +1,5 @@
+
 "use client";
-/* eslint-disable react-hooks/set-state-in-effect, react-hooks/exhaustive-deps */
 
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
@@ -7,32 +7,20 @@ import {
   AlertTriangle,
   ArrowRight,
   Ban,
-  CheckCircle2,
   Clock3,
   Inbox,
   Loader2,
-  MessageSquareText,
   Package2,
   RadioTower,
   RefreshCw,
-  Send,
   Settings,
   ShieldAlert,
 } from "lucide-react";
 import { AdminPageHeader } from "@/components/admin/admin-page-header";
-import { ParcelEstimateTracePanel } from "@/components/admin/parcel-estimate-trace-panel";
 import { AppButton } from "@/components/shared/app-button";
 import { StatusBadge } from "@/components/shared/status-badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { cancelRuntimeOrdersInProgress } from "@/lib/admin-data";
-import {
-  addOperatorParcelEvaluationQuestion,
-  finalizeOperatorParcelEvaluation,
-  operatorParcelEvaluationStatusLabels,
-  operatorParcelWarningLabels,
-  readOperatorParcelEvaluations,
-  subscribeOperatorParcelEvaluations,
-} from "@/lib/operator-parcel-evaluations";
 import { cn } from "@/lib/utils";
 import type { AdminAuditActor, OperationalPlatformStatus } from "@/types/admin";
 import type {
@@ -42,10 +30,6 @@ import type {
   OperationalIncident,
   OperationalMapOrder,
 } from "@/types/admin-operational";
-import type {
-  OperatorParcelEvaluation,
-  OperatorParcelWarning,
-} from "@/types/operator-parcel-evaluation";
 
 type OperationalCenterViewProps = {
   initialData: OperationalCenterData;
@@ -56,23 +40,6 @@ type BulkOrderActionFeedback = {
   tone: "success" | "destructive";
   message: string;
 };
-type OperatorEvaluationDraft = {
-  question: string;
-  weightKg: string;
-  lengthCm: string;
-  widthCm: string;
-  heightCm: string;
-  warnings: OperatorParcelWarning[];
-};
-
-const operatorEvaluationWarningOptions: OperatorParcelWarning[] = [
-  "fragile",
-  "temperature",
-  "liquid",
-  "humidity",
-  "orientation",
-];
-
 const adminBulkActor: AdminAuditActor = {
   actorId: "admin-local",
   actorRole: "admin",
@@ -92,7 +59,7 @@ function formatDateTime(value?: string | null) {
 
 function formatMoney(value: OperationalMapOrder["price"]) {
   if (!value) {
-    return "Preț indisponibil";
+    return "PreÈ› indisponibil";
   }
 
   return new Intl.NumberFormat("ro-RO", {
@@ -155,49 +122,6 @@ function EmptyQueueState({ children }: { children: string }) {
       {children}
     </div>
   );
-}
-
-function getOperatorEvaluationTone(
-  evaluation: OperatorParcelEvaluation,
-): StatusTone {
-  if (evaluation.status === "finalized") {
-    return "success";
-  }
-
-  if (evaluation.status === "waiting_customer") {
-    return "warning";
-  }
-
-  if (evaluation.status === "closed") {
-    return "neutral";
-  }
-
-  return "info";
-}
-
-function createOperatorEvaluationDraft(
-  evaluation: OperatorParcelEvaluation | null,
-): OperatorEvaluationDraft {
-  return {
-    question: "",
-    weightKg: evaluation?.profile?.weightKg
-      ? String(evaluation.profile.weightKg)
-      : "",
-    lengthCm: evaluation?.profile?.lengthCm
-      ? String(evaluation.profile.lengthCm)
-      : "",
-    widthCm: evaluation?.profile?.widthCm ? String(evaluation.profile.widthCm) : "",
-    heightCm: evaluation?.profile?.heightCm
-      ? String(evaluation.profile.heightCm)
-      : "",
-    warnings: evaluation?.profile?.warnings ?? [],
-  };
-}
-
-function parsePositiveNumber(value: string) {
-  const parsedValue = Number(value.replace(",", "."));
-
-  return Number.isFinite(parsedValue) && parsedValue > 0 ? parsedValue : null;
 }
 
 function OverviewCard({
@@ -271,7 +195,7 @@ function ActiveOrdersQueue({ orders }: { orders: OperationalMapOrder[] }) {
         <QueueHeader
           icon={Package2}
           title="Comenzi active"
-          description="Programate, în așteptare sau în zbor, ordonate după starea curentă."
+          description="Programate, Ã®n aÈ™teptare sau Ã®n zbor, ordonate dupÄƒ starea curentÄƒ."
           href="/admin/orders"
         />
 
@@ -295,7 +219,7 @@ function ActiveOrdersQueue({ orders }: { orders: OperationalMapOrder[] }) {
               <div>
                 <p className="text-xs text-muted-foreground">Ruta</p>
                 <p className="mt-1 truncate text-sm text-foreground">
-                  {order.pickup.label} către {order.dropoff.label}
+                  {order.pickup.label} cÄƒtre {order.dropoff.label}
                 </p>
               </div>
               <div>
@@ -311,7 +235,7 @@ function ActiveOrdersQueue({ orders }: { orders: OperationalMapOrder[] }) {
           ))}
 
           {orders.length === 0 ? (
-            <EmptyQueueState>Nu există comenzi active în datele disponibile.</EmptyQueueState>
+            <EmptyQueueState>Nu existÄƒ comenzi active Ã®n datele disponibile.</EmptyQueueState>
           ) : null}
         </div>
       </CardContent>
@@ -326,7 +250,7 @@ function FailedOrdersQueue({ incidents }: { incidents: OperationalIncident[] }) 
         <QueueHeader
           icon={ShieldAlert}
           title="Incidente"
-          description="Cazuri de rezolvat operațional, fără recuperări locker dublate."
+          description="Cazuri de rezolvat operaÈ›ional, fÄƒrÄƒ recuperÄƒri locker dublate."
           href="/admin/failed-orders"
         />
 
@@ -350,7 +274,7 @@ function FailedOrdersQueue({ incidents }: { incidents: OperationalIncident[] }) 
                 </p>
               </div>
               <div>
-                <p className="text-xs text-muted-foreground">Locație colet</p>
+                <p className="text-xs text-muted-foreground">LocaÈ›ie colet</p>
                 <p className="mt-1 truncate text-sm text-foreground">
                   {incident.locationLabel}
                 </p>
@@ -365,7 +289,7 @@ function FailedOrdersQueue({ incidents }: { incidents: OperationalIncident[] }) 
           ))}
 
           {incidents.length === 0 ? (
-            <EmptyQueueState>Nu există incidente în datele disponibile.</EmptyQueueState>
+            <EmptyQueueState>Nu existÄƒ incidente Ã®n datele disponibile.</EmptyQueueState>
           ) : null}
         </div>
       </CardContent>
@@ -384,8 +308,8 @@ function ContactMessagesQueue({
         <QueueHeader
           icon={Inbox}
           title="Mesaje noi"
-          description="Mesaje primite și nesortate încă în fluxul de suport."
-          href="/admin/contact-messages"
+          description="Mesaje primite È™i nesortate Ã®ncÄƒ Ã®n fluxul de suport."
+          href="/admin/site-messages"
         />
 
         <div className="grid gap-2">
@@ -413,266 +337,9 @@ function ContactMessagesQueue({
           ))}
 
           {messages.length === 0 ? (
-            <EmptyQueueState>Nu există mesaje noi.</EmptyQueueState>
+            <EmptyQueueState>Nu existÄƒ mesaje noi.</EmptyQueueState>
           ) : null}
         </div>
-      </CardContent>
-    </Card>
-  );
-}
-
-function ParcelEvaluationsQueue({
-  evaluations,
-  selectedEvaluationId,
-  draft,
-  feedback,
-  onSelectEvaluation,
-  onDraftChange,
-  onToggleWarning,
-  onSendQuestion,
-  onSaveProfile,
-}: {
-  evaluations: OperatorParcelEvaluation[];
-  selectedEvaluationId: string | null;
-  draft: OperatorEvaluationDraft;
-  feedback: string | null;
-  onSelectEvaluation: (evaluation: OperatorParcelEvaluation) => void;
-  onDraftChange: <K extends keyof OperatorEvaluationDraft>(
-    field: K,
-    value: OperatorEvaluationDraft[K],
-  ) => void;
-  onToggleWarning: (warning: OperatorParcelWarning) => void;
-  onSendQuestion: (evaluation: OperatorParcelEvaluation) => void;
-  onSaveProfile: (evaluation: OperatorParcelEvaluation) => void;
-}) {
-  const selectedEvaluation =
-    evaluations.find((evaluation) => evaluation.id === selectedEvaluationId) ??
-    evaluations[0] ??
-    null;
-  const activeQuestion = selectedEvaluation?.questions.find(
-    (question) => !question.answer,
-  );
-  const isClosed =
-    selectedEvaluation?.status === "finalized" ||
-    selectedEvaluation?.status === "closed";
-  const canSendQuestion =
-    Boolean(selectedEvaluation && draft.question.trim()) &&
-    !activeQuestion &&
-    !isClosed;
-  const canSaveProfile =
-    Boolean(selectedEvaluation) &&
-    Boolean(parsePositiveNumber(draft.weightKg)) &&
-    Boolean(parsePositiveNumber(draft.lengthCm)) &&
-    Boolean(parsePositiveNumber(draft.widthCm)) &&
-    Boolean(parsePositiveNumber(draft.heightCm)) &&
-    !isClosed;
-
-  return (
-    <Card className="rounded-[calc(var(--radius)+0.5rem)]">
-      <CardContent className="grid gap-4 p-5">
-        <div className="flex flex-wrap items-start justify-between gap-3">
-          <div className="flex gap-3">
-            <div className="mt-0.5 rounded-full bg-secondary p-2 text-muted-foreground">
-              <MessageSquareText className="size-4" />
-            </div>
-            <div>
-              <p className="font-medium text-foreground">Evaluari colet</p>
-              <p className="mt-1 text-sm leading-6 text-muted-foreground">
-                Coada secundara pentru profiluri de colet cerute de clienti.
-              </p>
-            </div>
-          </div>
-          <StatusBadge
-            label={`${evaluations.filter((evaluation) => evaluation.status !== "finalized" && evaluation.status !== "closed").length} active`}
-            tone={evaluations.length ? "info" : "neutral"}
-          />
-        </div>
-
-        <div className="grid gap-2">
-          {evaluations.slice(0, 6).map((evaluation) => (
-            <button
-              key={evaluation.id}
-              type="button"
-              onClick={() => onSelectEvaluation(evaluation)}
-              className={cn(
-                "grid gap-2 rounded-[calc(var(--radius)+0.35rem)] border p-3 text-left transition-colors hover:border-primary/45 hover:bg-secondary/30 md:grid-cols-[minmax(0,1fr)_7rem_8rem]",
-                selectedEvaluation?.id === evaluation.id
-                  ? "border-primary/45 bg-primary/8"
-                  : "border-border/75 bg-card",
-              )}
-            >
-              <div className="min-w-0">
-                <p className="truncate text-sm font-medium text-foreground">
-                  {evaluation.sessionId}
-                </p>
-                <p className="mt-1 line-clamp-1 text-xs text-muted-foreground">
-                  {evaluation.initialDescription}
-                </p>
-              </div>
-              <div>
-                <p className="text-xs text-muted-foreground">Intrebari</p>
-                <p className="mt-1 text-sm font-medium text-foreground">
-                  {evaluation.questions.length}
-                </p>
-              </div>
-              <div className="flex items-center md:justify-end">
-                <StatusBadge
-                  label={operatorParcelEvaluationStatusLabels[evaluation.status]}
-                  tone={getOperatorEvaluationTone(evaluation)}
-                />
-              </div>
-            </button>
-          ))}
-
-          {evaluations.length === 0 ? (
-            <EmptyQueueState>Nu exista evaluari de colet in lucru.</EmptyQueueState>
-          ) : null}
-        </div>
-
-        {selectedEvaluation ? (
-          <div className="grid gap-4 rounded-[calc(var(--radius)+0.45rem)] border border-border/75 bg-secondary/20 p-4">
-            <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_11rem]">
-              <div>
-                <p className="text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">
-                  Descriere initiala AI
-                </p>
-                <p className="mt-2 text-sm leading-6 text-foreground">
-                  {selectedEvaluation.initialDescription}
-                </p>
-              </div>
-              <div className="grid gap-2 text-sm">
-                <StatusBadge
-                  label={operatorParcelEvaluationStatusLabels[selectedEvaluation.status]}
-                  tone={getOperatorEvaluationTone(selectedEvaluation)}
-                  className="w-fit"
-                />
-                <span className="text-muted-foreground">
-                  {selectedEvaluation.questions.length} intrebari trimise
-                </span>
-              </div>
-            </div>
-
-            {selectedEvaluation.estimateTrace ? (
-              <ParcelEstimateTracePanel
-                estimateTrace={selectedEvaluation.estimateTrace}
-              />
-            ) : null}
-
-            <div className="grid gap-2">
-              <p className="text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">
-                Istoric intrebari si raspunsuri
-              </p>
-              {selectedEvaluation.questions.length ? (
-                selectedEvaluation.questions.map((question, index) => (
-                  <div
-                    key={question.id}
-                    className="grid gap-2 rounded-[calc(var(--radius)+0.35rem)] border border-border/75 bg-card p-3 text-sm"
-                  >
-                    <p className="font-medium text-foreground">
-                      {index + 1}. {question.question}
-                    </p>
-                    <p className="leading-6 text-muted-foreground">
-                      {question.answer ?? "Fara raspuns inca."}
-                    </p>
-                  </div>
-                ))
-              ) : (
-                <EmptyQueueState>Nu au fost trimise intrebari.</EmptyQueueState>
-              )}
-            </div>
-
-            <div className="grid gap-3">
-              <label className="grid gap-2">
-                <span className="text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">
-                  Intrebare pentru client
-                </span>
-                <textarea
-                  value={draft.question}
-                  rows={3}
-                  placeholder="Ex: Coletul contine lichide sau recipiente fragile?"
-                  onChange={(event) => onDraftChange("question", event.target.value)}
-                  className="min-h-24 w-full resize-y rounded-[var(--ui-radius-card)] border border-input bg-card px-4 py-3 text-sm leading-6 outline-none transition-[border-color,box-shadow] placeholder:text-muted-foreground/70 focus-visible:border-primary/15 focus-visible:ring-4 focus-visible:ring-ring"
-                />
-              </label>
-              <AppButton
-                type="button"
-                variant="outline"
-                size="sm"
-                className="w-full sm:w-fit"
-                onClick={() => onSendQuestion(selectedEvaluation)}
-                disabled={!canSendQuestion}
-              >
-                <Send className="size-4" />
-                Trimite intrebare
-              </AppButton>
-            </div>
-
-            <div className="grid gap-3">
-              <p className="text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">
-                Profil colet completat de admin
-              </p>
-              <div className="grid gap-3 sm:grid-cols-4">
-                {[
-                  ["weightKg", "Greutate kg"],
-                  ["lengthCm", "Lungime cm"],
-                  ["widthCm", "Latime cm"],
-                  ["heightCm", "Inaltime cm"],
-                ].map(([field, label]) => (
-                  <label key={field} className="grid gap-2">
-                    <span className="text-xs text-muted-foreground">{label}</span>
-                    <input
-                      type="number"
-                      min="0.1"
-                      step={field === "weightKg" ? "0.1" : "1"}
-                      value={draft[field as keyof OperatorEvaluationDraft] as string}
-                      onChange={(event) =>
-                        onDraftChange(
-                          field as keyof OperatorEvaluationDraft,
-                          event.target.value as never,
-                        )
-                      }
-                      className="h-11 rounded-2xl border border-input bg-card px-3 text-sm outline-none transition-[border-color,box-shadow] focus-visible:border-primary/15 focus-visible:ring-4 focus-visible:ring-ring"
-                    />
-                  </label>
-                ))}
-              </div>
-
-              <div className="flex flex-wrap gap-2">
-                {operatorEvaluationWarningOptions.map((warning) => (
-                  <label
-                    key={warning}
-                    className="flex min-h-10 items-center gap-2 rounded-2xl border border-border/80 bg-card px-3 text-sm text-foreground"
-                  >
-                    <input
-                      type="checkbox"
-                      checked={draft.warnings.includes(warning)}
-                      onChange={() => onToggleWarning(warning)}
-                      className="size-4 accent-primary"
-                    />
-                    {operatorParcelWarningLabels[warning]}
-                  </label>
-                ))}
-              </div>
-
-              <AppButton
-                type="button"
-                size="sm"
-                className="w-full sm:w-fit"
-                onClick={() => onSaveProfile(selectedEvaluation)}
-                disabled={!canSaveProfile}
-              >
-                <CheckCircle2 className="size-4" />
-                Salveaza profilul
-              </AppButton>
-            </div>
-
-            {feedback ? (
-              <div className="rounded-[calc(var(--radius)+0.35rem)] border border-primary/30 bg-primary/10 px-4 py-3 text-sm leading-6 text-muted-foreground">
-                {feedback}
-              </div>
-            ) : null}
-          </div>
-        ) : null}
       </CardContent>
     </Card>
   );
@@ -684,8 +351,8 @@ function PlatformStatusPanel({ data }: { data: OperationalCenterData }) {
       <CardContent className="grid gap-4 p-5">
         <QueueHeader
           icon={Settings}
-          title="Status platformă"
-          description="Setări operaționale folosite de panoul admin."
+          title="Status platformÄƒ"
+          description="SetÄƒri operaÈ›ionale folosite de panoul admin."
           href="/admin/settings"
         />
 
@@ -698,7 +365,7 @@ function PlatformStatusPanel({ data }: { data: OperationalCenterData }) {
             />
           </div>
           <div className="flex items-center justify-between gap-3 rounded-[calc(var(--radius)+0.35rem)] border border-border/75 bg-secondary/25 p-4">
-            <span className="text-muted-foreground">Rază activă</span>
+            <span className="text-muted-foreground">RazÄƒ activÄƒ</span>
             <span className="font-medium text-foreground">
               {data.platform.serviceRadiusKm} km
             </span>
@@ -735,12 +402,12 @@ function LockerRecoveryNotice({
       <div className="flex items-center gap-3">
         <AlertTriangle className="size-4 text-warning" />
         <p className="text-muted-foreground">
-          {incidents.length} recuperări locker active generate de simulare.
+          {incidents.length} recuperÄƒri locker active generate de simulare.
         </p>
       </div>
       <AppButton asChild variant="outline" size="sm">
         <Link href="/admin/locker-recoveries">
-          Vezi recuperări
+          Vezi recuperÄƒri
           <ArrowRight className="size-4" />
         </Link>
       </AppButton>
@@ -754,9 +421,9 @@ function ActivityFeed({ events }: { events: OperationalEvent[] }) {
       <CardContent className="grid gap-4 p-5">
         <div className="flex items-center justify-between gap-3">
           <div>
-            <p className="font-medium text-foreground">Activitate recentă</p>
+            <p className="font-medium text-foreground">Activitate recentÄƒ</p>
             <p className="mt-1 text-sm text-muted-foreground">
-              Evenimente calculate din comenzile și cazurile existente.
+              Evenimente calculate din comenzile È™i cazurile existente.
             </p>
           </div>
           <Clock3 className="size-5 text-muted-foreground" />
@@ -787,7 +454,7 @@ function ActivityFeed({ events }: { events: OperationalEvent[] }) {
           ))}
 
           {events.length === 0 ? (
-            <EmptyQueueState>Nu există activitate recentă de afișat.</EmptyQueueState>
+            <EmptyQueueState>Nu existÄƒ activitate recentÄƒ de afiÈ™at.</EmptyQueueState>
           ) : null}
         </div>
       </CardContent>
@@ -805,33 +472,6 @@ export function AdminOperationalCenterView({
     null,
   );
   const [isManualRefreshRunning, setIsManualRefreshRunning] = useState(false);
-  const [selectedParcelEvaluationId, setSelectedParcelEvaluationId] = useState<
-    string | null
-  >(initialData.parcelEvaluations[0]?.id ?? null);
-  const selectedParcelEvaluation =
-    data.parcelEvaluations.find(
-      (evaluation) => evaluation.id === selectedParcelEvaluationId,
-    ) ??
-    data.parcelEvaluations[0] ??
-    null;
-
-  // On mount, seed parcelEvaluations from localStorage so the inbox isn't
-  // empty until the first refresh tick. The subscription keeps it in sync
-  // after that.
-  useEffect(() => {
-    const local = readOperatorParcelEvaluations();
-    if (local.length === 0) return;
-    setData((current) => ({ ...current, parcelEvaluations: local }));
-    setSelectedParcelEvaluationId((current) => current ?? local[0]?.id ?? null);
-  }, []);
-  const [parcelEvaluationDraft, setParcelEvaluationDraft] =
-    useState<OperatorEvaluationDraft>(() =>
-      createOperatorEvaluationDraft(selectedParcelEvaluation),
-    );
-  const [parcelEvaluationFeedback, setParcelEvaluationFeedback] = useState<
-    string | null
-  >(null);
-
   const refreshOperationalData = useCallback(async () => {
     try {
       const response = await fetch("/api/admin/operational-center", {
@@ -846,15 +486,8 @@ export function AdminOperationalCenterView({
 
       const refreshed = (await response.json()) as OperationalCenterData;
 
-      // The /api/admin/operational-center route runs server-side and cannot
-      // read the browser localStorage where operator parcel evaluation
-      // requests are written by the client flow. Pull the live list from
-      // localStorage here so new requests surface immediately — this is the
-      // same source the dedicated /admin/parcel-evaluations page reads from.
-      refreshed.parcelEvaluations = readOperatorParcelEvaluations();
       setData(refreshed);
     } catch {
-      // Keep the SSR-loaded data on network/parse failure.
     }
   }, []);
 
@@ -862,9 +495,6 @@ export function AdminOperationalCenterView({
     void Promise.resolve().then(refreshOperationalData);
   }, [refreshOperationalData]);
 
-  useEffect(() => {
-    return subscribeOperatorParcelEvaluations(refreshOperationalData);
-  }, [refreshOperationalData]);
 
   useEffect(() => {
     function refreshWhenVisible() {
@@ -894,115 +524,17 @@ export function AdminOperationalCenterView({
     (incident) => incident.priority === "urgent" || incident.priority === "high",
   ).length;
 
-  function handleSelectParcelEvaluation(evaluation: OperatorParcelEvaluation) {
-    setSelectedParcelEvaluationId(evaluation.id);
-    setParcelEvaluationDraft(createOperatorEvaluationDraft(evaluation));
-    setParcelEvaluationFeedback(null);
-  }
-
-  // Keep the draft in sync when the auto-selected evaluation changes (for
-  // example when a new request arrives via localStorage and the inbox
-  // switches its default selection).
-  useEffect(() => {
-    if (!selectedParcelEvaluation) return;
-    setParcelEvaluationDraft(createOperatorEvaluationDraft(selectedParcelEvaluation));
-  }, [selectedParcelEvaluation?.id]);
-
-  function handleParcelEvaluationDraftChange<K extends keyof OperatorEvaluationDraft>(
-    field: K,
-    value: OperatorEvaluationDraft[K],
-  ) {
-    setParcelEvaluationDraft((currentValue) => ({
-      ...currentValue,
-      [field]: value,
-    }));
-    setParcelEvaluationFeedback(null);
-  }
-
-  function handleToggleParcelWarning(warning: OperatorParcelWarning) {
-    setParcelEvaluationDraft((currentValue) => ({
-      ...currentValue,
-      warnings: currentValue.warnings.includes(warning)
-        ? currentValue.warnings.filter((item) => item !== warning)
-        : [...currentValue.warnings, warning],
-    }));
-    setParcelEvaluationFeedback(null);
-  }
-
-  function handleSendParcelQuestion(evaluation: OperatorParcelEvaluation) {
-    const result = addOperatorParcelEvaluationQuestion({
-      evaluationId: evaluation.id,
-      question: parcelEvaluationDraft.question,
-    });
-
-    if (!result.ok) {
-      setParcelEvaluationFeedback(
-        result.reason === "active_question_exists"
-          ? "Exista deja o intrebare fara raspuns."
-          : "Intrebarea nu poate fi trimisa pentru aceasta evaluare.",
-      );
-      return;
-    }
-
-    refreshOperationalData();
-    setSelectedParcelEvaluationId(result.evaluation.id);
-    setParcelEvaluationDraft((currentValue) => ({
-      ...currentValue,
-      question: "",
-    }));
-    setParcelEvaluationFeedback("Intrebarea a fost trimisa clientului.");
-  }
-
-  function handleSaveParcelProfile(evaluation: OperatorParcelEvaluation) {
-    const weightKg = parsePositiveNumber(parcelEvaluationDraft.weightKg);
-    const lengthCm = parsePositiveNumber(parcelEvaluationDraft.lengthCm);
-    const widthCm = parsePositiveNumber(parcelEvaluationDraft.widthCm);
-    const heightCm = parsePositiveNumber(parcelEvaluationDraft.heightCm);
-
-    if (!weightKg || !lengthCm || !widthCm || !heightCm) {
-      setParcelEvaluationFeedback(
-        "Completeaza greutatea si toate dimensiunile cu valori pozitive.",
-      );
-      return;
-    }
-
-    const result = finalizeOperatorParcelEvaluation({
-      evaluationId: evaluation.id,
-      profile: {
-        weightKg,
-        lengthCm,
-        widthCm,
-        heightCm,
-        warnings: parcelEvaluationDraft.warnings,
-      },
-    });
-
-    if (!result.ok) {
-      setParcelEvaluationFeedback(
-        "Profilul nu poate fi salvat pentru aceasta evaluare.",
-      );
-      return;
-    }
-
-    refreshOperationalData();
-    setSelectedParcelEvaluationId(result.evaluation.id);
-    setParcelEvaluationDraft(createOperatorEvaluationDraft(result.evaluation));
-    setParcelEvaluationFeedback(
-      "Profilul a fost salvat. Thread-ul clientului se inchide automat.",
-    );
-  }
-
   function handleCancelActiveOrders() {
     if (data.activeOrders.length === 0) {
       setBulkActionFeedback({
         tone: "success",
-        message: "Nu există comenzi în desfășurare de anulat.",
+        message: "Nu existÄƒ comenzi Ã®n desfÄƒÈ™urare de anulat.",
       });
       return;
     }
 
     const confirmed = window.confirm(
-      `Anulezi ${data.activeOrders.length} comenzi în desfășurare? Comenzile vor rămâne în istoric, dar nu vor mai apărea ca livrări active.`,
+      `Anulezi ${data.activeOrders.length} comenzi Ã®n desfÄƒÈ™urare? Comenzile vor rÄƒmÃ¢ne Ã®n istoric, dar nu vor mai apÄƒrea ca livrÄƒri active.`,
     );
 
     if (!confirmed) {
@@ -1012,13 +544,13 @@ export function AdminOperationalCenterView({
     setBulkActionRunning("cancel");
     const result = cancelRuntimeOrdersInProgress({
       actor: adminBulkActor,
-      reason: "Anulare în masă din Privire generală.",
+      reason: "Anulare Ã®n masÄƒ din Privire generalÄƒ.",
     });
 
     if (!result.ok) {
       setBulkActionFeedback({
         tone: "destructive",
-        message: "Comenzile nu pot fi anulate în acest browser deoarece stocarea locală nu este disponibilă.",
+        message: "Comenzile nu pot fi anulate Ã®n acest browser deoarece stocarea localÄƒ nu este disponibilÄƒ.",
       });
       setBulkActionRunning(null);
       return;
@@ -1029,8 +561,8 @@ export function AdminOperationalCenterView({
       tone: "success",
       message:
         result.affectedOrders === 1
-          ? "O comandă în desfășurare a fost anulată."
-          : `${result.affectedOrders} comenzi în desfășurare au fost anulate.`,
+          ? "O comandÄƒ Ã®n desfÄƒÈ™urare a fost anulatÄƒ."
+          : `${result.affectedOrders} comenzi Ã®n desfÄƒÈ™urare au fost anulate.`,
     });
     setBulkActionRunning(null);
   }
@@ -1045,8 +577,8 @@ export function AdminOperationalCenterView({
     <section className="flex flex-col gap-6">
       <AdminPageHeader
         eyebrow="Panou Administrator"
-        title="Privire generală"
-        description="Cozi de lucru pentru comenzi, incidente, mesaje și statusul platformei."
+        title="Privire generalÄƒ"
+        description="Cozi de lucru pentru comenzi, incidente, mesaje È™i statusul platformei."
         actions={
           <>
             <AppButton
@@ -1073,7 +605,7 @@ export function AdminOperationalCenterView({
               ) : (
                 <Ban className="size-4" />
               )}
-              Anulează active
+              AnuleazÄƒ active
             </AppButton>
             <AppButton asChild variant="outline">
               <Link href="/admin/orders">
@@ -1082,7 +614,7 @@ export function AdminOperationalCenterView({
               </Link>
             </AppButton>
             <AppButton asChild variant="outline">
-              <Link href="/admin/contact-messages">
+              <Link href="/admin/site-messages">
                 Mesaje
                 <Inbox className="size-4" />
               </Link>
@@ -1108,7 +640,7 @@ export function AdminOperationalCenterView({
         <OverviewCard
           label="Comenzi active"
           value={`${data.activeOrders.length}`}
-          hint="Programate, în așteptare sau în zbor."
+          hint="Programate, Ã®n aÈ™teptare sau Ã®n zbor."
           tone={data.activeOrders.length > 0 ? "info" : "neutral"}
         />
         <OverviewCard
@@ -1116,27 +648,21 @@ export function AdminOperationalCenterView({
           value={`${failedIncidents.length}`}
           hint={
             urgentFailedCount > 0
-              ? `${urgentFailedCount} cazuri cu prioritate ridicată.`
-              : "Fără cazuri prioritare în listă."
+              ? `${urgentFailedCount} cazuri cu prioritate ridicatÄƒ.`
+              : "FÄƒrÄƒ cazuri prioritare Ã®n listÄƒ."
           }
           tone={urgentFailedCount > 0 ? "warning" : "neutral"}
         />
         {false ? <OverviewCard
-          label="Evaluari colet"
-          value={`${data.parcelEvaluations.length}`}
-          hint="Cereri de profil colet in lucru sau finalizate."
-          tone={data.parcelEvaluations.length > 0 ? "info" : "neutral"}
-        /> : null}
-        {false ? <OverviewCard
           label="Mesaje noi"
           value={`${data.contactMessages.length}`}
-          hint="Mesaje care nu au fost preluate încă."
+          hint="Mesaje care nu au fost preluate Ã®ncÄƒ."
           tone={data.contactMessages.length > 0 ? "info" : "neutral"}
         /> : null}
         <OverviewCard
-          label="Status platformă"
+          label="Status platformÄƒ"
           value={data.platform.statusLabel}
-          hint={`Rază activă: ${data.platform.serviceRadiusKm} km.`}
+          hint={`RazÄƒ activÄƒ: ${data.platform.serviceRadiusKm} km.`}
           tone={getPlatformTone(data.platform.status)}
         />
       </div>
@@ -1146,17 +672,6 @@ export function AdminOperationalCenterView({
       <div className="grid gap-5 xl:grid-cols-[minmax(0,1.35fr)_minmax(22rem,0.65fr)]">
         <div className="grid gap-5">
           <ActiveOrdersQueue orders={data.activeOrders} />
-          {false ? <><ParcelEvaluationsQueue
-            evaluations={data.parcelEvaluations}
-            selectedEvaluationId={selectedParcelEvaluationId}
-            draft={parcelEvaluationDraft}
-            feedback={parcelEvaluationFeedback}
-            onSelectEvaluation={handleSelectParcelEvaluation}
-            onDraftChange={handleParcelEvaluationDraftChange}
-            onToggleWarning={handleToggleParcelWarning}
-            onSendQuestion={handleSendParcelQuestion}
-            onSaveProfile={handleSaveParcelProfile}
-          /></> : null}
           <FailedOrdersQueue incidents={failedIncidents} />
         </div>
 

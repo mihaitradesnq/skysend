@@ -53,7 +53,7 @@ function mapRepoContactMessageToAdmin(
     internalNote: msg.internalNote,
     preparedReply: null,
     readAt: msg.readAt,
-    archivedAt: null, // MOCK: rămâne temporar — nu există în contact_messages table
+    archivedAt: null,
     createdAt: msg.createdAt,
     updatedAt: msg.updatedAt,
   };

@@ -1,6 +1,6 @@
 import type { Viewport } from "next";
 import type { ReactNode } from "react";
-import { Manrope, Sora } from "next/font/google";
+import { Barlow_Condensed, Manrope, Sora } from "next/font/google";
 import Script from "next/script";
 import { Providers } from "@/components/shared/providers";
 import { SkipLink } from "@/components/shared/skip-link";
@@ -24,6 +24,15 @@ const displayFont = Sora({
   fallback: ["Segoe UI", "Arial", "sans-serif"],
 });
 
+const storyFont = Barlow_Condensed({
+  subsets: ["latin", "latin-ext"],
+  variable: "--font-story",
+  display: "swap",
+  preload: true,
+  weight: ["500", "600", "700"],
+  fallback: ["Arial Narrow", "Segoe UI", "Arial", "sans-serif"],
+});
+
 export const metadata = defaultMetadata;
 
 export const viewport: Viewport = {
@@ -38,15 +47,12 @@ export default function RootLayout({
   children: ReactNode;
 }>) {
   return (
-    // suppressHydrationWarning: the anti-FOUC script below mutates the
-    // <html> className/lang before React hydrates, which is intentional.
     <html
       lang="ro"
-      className={`dark ${bodyFont.variable} ${displayFont.variable}`}
+      className={`dark ${bodyFont.variable} ${displayFont.variable} ${storyFont.variable}`}
       suppressHydrationWarning
     >
       <body className="min-h-screen min-h-svh overflow-x-clip font-sans antialiased">
-        {/* Anti-FOUC: apply persisted theme + language before first paint. */}
         <Script id="skysend-anti-fouc" strategy="beforeInteractive">
           {ANTI_FOUC_SCRIPT}
         </Script>

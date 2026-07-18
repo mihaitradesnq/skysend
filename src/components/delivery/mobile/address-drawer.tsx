@@ -2,7 +2,15 @@
 
 import { useEffect, useRef, useState } from "react";
 import { AnimatePresence, motion, type PanInfo } from "motion/react";
-import { ArrowRight, Check, Heart, MapPin, Navigation, X } from "lucide-react";
+import {
+  ArrowRight,
+  Check,
+  Heart,
+  MapPin,
+  MapPinned,
+  Navigation,
+  X,
+} from "lucide-react";
 import { AddressAutocompleteInput } from "@/components/maps/address-autocomplete-input";
 import { AppButton } from "@/components/shared/app-button";
 import { StatusBadge } from "@/components/shared/status-badge";
@@ -40,6 +48,7 @@ type AddressDrawerProps = {
   isLocked: boolean;
   routeReady: boolean;
   outOfZoneMessage: string | null;
+  activeMapSelectionField: CreateDeliveryAddressField | null;
   onAddressChange: (field: CreateDeliveryAddressField, value: string) => void;
   onAddressSelect: (
     field: CreateDeliveryAddressField,
@@ -49,6 +58,7 @@ type AddressDrawerProps = {
     field: CreateDeliveryAddressField,
     place: SavedPlace,
   ) => void;
+  onMapSelectionToggle: (field: CreateDeliveryAddressField) => void;
   onContinue: () => void;
 };
 
@@ -57,11 +67,17 @@ function CollapsedFieldRow({
   value,
   validation,
   onActivate,
+  isMapSelectionActive,
+  disabled,
+  onMapSelectionToggle,
 }: {
   field: CreateDeliveryAddressField;
   value: CreateDeliveryAddressDraft;
   validation: CreateDeliveryAddressValidation;
   onActivate: () => void;
+  isMapSelectionActive: boolean;
+  disabled: boolean;
+  onMapSelectionToggle: () => void;
 }) {
   const isPickup = field === "pickup";
   const Icon = isPickup ? MapPin : Navigation;
@@ -70,41 +86,63 @@ function CollapsedFieldRow({
   const displayValue = hasValue ? value.address.trim() : placeholder;
 
   return (
-    <button
-      type="button"
-      onClick={onActivate}
-      className="flex min-h-12 w-full min-w-0 max-w-full items-center gap-3 overflow-hidden rounded-2xl border border-border/80 bg-card px-3.5 py-2.5 text-left transition-colors hover:border-primary/35 active:bg-secondary/55"
-    >
-      <span
-        className={cn(
-          "grid size-7 shrink-0 place-items-center rounded-full",
-          isPickup
-            ? "bg-primary/15 text-primary"
-            : "bg-foreground/10 text-foreground",
-        )}
+    <div className="grid min-w-0 grid-cols-[minmax(0,1fr)_3rem] gap-2">
+      <button
+        type="button"
+        onClick={onActivate}
+        disabled={disabled}
+        className="flex min-h-12 w-full min-w-0 max-w-full items-center gap-3 overflow-hidden rounded-2xl border border-border/80 bg-card px-3.5 py-2.5 text-left transition-colors hover:border-primary/35 active:bg-secondary/55 disabled:pointer-events-none disabled:opacity-55"
       >
-        <Icon className="size-4" />
-      </span>
-      <span className="min-w-0 flex-1 overflow-hidden">
         <span
           className={cn(
-            "block max-w-full truncate text-sm",
-            hasValue ? "text-foreground" : "text-muted-foreground",
+            "grid size-7 shrink-0 place-items-center rounded-full",
+            isPickup
+              ? "bg-primary/15 text-primary"
+              : "bg-foreground/10 text-foreground",
           )}
         >
-          {displayValue}
+          <Icon className="size-4" />
         </span>
-      </span>
-      {hasValue && validation.isEligible ? (
-        <Check className="size-4 shrink-0 text-primary" aria-hidden />
-      ) : validation.state === "outside" ? (
-        <StatusBadge
-          label="În afara zonei"
-          tone="destructive"
-          className="shrink-0 px-2 py-0.5 text-[0.6rem]"
-        />
-      ) : null}
-    </button>
+        <span className="min-w-0 flex-1 overflow-hidden">
+          <span
+            className={cn(
+              "block max-w-full truncate text-sm",
+              hasValue ? "text-foreground" : "text-muted-foreground",
+            )}
+          >
+            {displayValue}
+          </span>
+        </span>
+        {hasValue && validation.isEligible ? (
+          <Check className="size-4 shrink-0 text-primary" aria-hidden />
+        ) : validation.state === "outside" ? (
+          <StatusBadge
+            label="În afara zonei"
+            tone="destructive"
+            className="shrink-0 px-2 py-0.5 text-[0.6rem]"
+          />
+        ) : null}
+      </button>
+      <button
+        type="button"
+        onClick={onMapSelectionToggle}
+        disabled={disabled}
+        aria-pressed={isMapSelectionActive}
+        aria-label={
+          isPickup
+            ? "Poziționează adresa de ridicare cu pinul central"
+            : "Poziționează adresa de livrare cu pinul central"
+        }
+        className={cn(
+          "grid min-h-12 place-items-center rounded-2xl border transition-colors focus-visible:ring-4 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-55",
+          isMapSelectionActive
+            ? "border-primary/60 bg-primary text-primary-foreground shadow-[var(--elevation-soft)]"
+            : "border-border/80 bg-card text-muted-foreground hover:border-primary/35 hover:text-primary",
+        )}
+      >
+        <MapPinned className="size-4" />
+      </button>
+    </div>
   );
 }
 
@@ -159,9 +197,11 @@ export function AddressDrawer({
   isLocked,
   routeReady,
   outOfZoneMessage,
+  activeMapSelectionField,
   onAddressChange,
   onAddressSelect,
   onSavedPlaceSelect,
+  onMapSelectionToggle,
   onContinue,
 }: AddressDrawerProps) {
   const isOpen = state !== "collapsed";
@@ -374,6 +414,12 @@ export function AddressDrawer({
                     onActiveFieldChange("pickup");
                     onStateChange("partial");
                   }}
+                  isMapSelectionActive={activeMapSelectionField === "pickup"}
+                  disabled={isLocked}
+                  onMapSelectionToggle={() => {
+                    onActiveFieldChange("pickup");
+                    onMapSelectionToggle("pickup");
+                  }}
                 />
                 <CollapsedFieldRow
                   field="dropoff"
@@ -382,6 +428,12 @@ export function AddressDrawer({
                   onActivate={() => {
                     onActiveFieldChange("dropoff");
                     onStateChange("partial");
+                  }}
+                  isMapSelectionActive={activeMapSelectionField === "dropoff"}
+                  disabled={isLocked}
+                  onMapSelectionToggle={() => {
+                    onActiveFieldChange("dropoff");
+                    onMapSelectionToggle("dropoff");
                   }}
                 />
               </div>

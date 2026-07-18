@@ -43,7 +43,7 @@ export type AdminPersistenceState =
   | "local_only"
   | "not_persisted";
 
-export type AdminRole = Extract<UserRole, "admin" | "operator" | "suport">;
+export type AdminRole = Extract<UserRole, "admin" | "operator">;
 export type AdminAuditActorRole = AdminRole | "system";
 
 export type AdminAuditActor = {
@@ -345,6 +345,7 @@ export type LockerRecoveryIncident = {
 export type ContactMessageStatus =
   | "new"
   | "read"
+  | "replied"
   | "in_progress"
   | "prepared_reply"
   | "archived";

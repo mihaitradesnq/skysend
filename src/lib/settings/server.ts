@@ -9,12 +9,6 @@ import {
 } from "@/lib/settings/types";
 import type { CurrencyCode } from "@/types/entities";
 
-/**
- * Server-side mirror of the client preference store. Reads the
- * `skysend:user-prefs` cookie (written by the SettingsProvider on every
- * change) so server components and generateMetadata can resolve the active
- * language without access to localStorage.
- */
 export async function readPrefsFromCookies(): Promise<UserPrefs> {
   const store = await cookies();
   const raw = store.get(PREFS_COOKIE_NAME)?.value;

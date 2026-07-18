@@ -7,10 +7,16 @@ export default defineConfig({
   resolve: {
     alias: {
       '@': path.resolve(__dirname, './src'),
+      'server-only': path.resolve(__dirname, './src/test/server-only.ts'),
     },
   },
   test: {
     environment: 'node',
+    env: {
+      CLERK_SECRET_KEY: 'sk_test_vitest',
+      SUPABASE_SERVICE_ROLE_KEY: 'supabase_service_role_vitest',
+      STRIPE_SECRET_KEY: 'sk_test_vitest',
+    },
     globals: true,
     include: ['src/**/__tests__/**/*.{test,spec}.{ts,tsx}', 'src/**/*.{test,spec}.{ts,tsx}'],
     coverage: {

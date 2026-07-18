@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState, type ChangeEvent } from "react";
-import Link from "next/link";
 import { useClerk, useUser } from "@clerk/nextjs";
 import { useSignIn } from "@clerk/nextjs/legacy";
 import {
@@ -294,16 +293,6 @@ export function ClientSettingsView() {
 
   return (
     <section className="grid gap-6">
-      <div className="flex justify-start md:hidden">
-        <Link
-          href="/client/notifications"
-          className="inline-flex size-12 items-center justify-center rounded-full border border-border/80 bg-secondary/35 text-foreground transition hover:border-primary/35 hover:bg-secondary/70 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-ring"
-          aria-label="Deschide notificarile"
-        >
-          <Bell className="size-5" />
-        </Link>
-      </div>
-
       <PageHeader
         eyebrow="Setări"
         title="Setări"
