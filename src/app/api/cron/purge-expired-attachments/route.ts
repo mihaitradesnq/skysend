@@ -38,12 +38,29 @@ export async function GET(request: Request) {
     }
   }
 
+  const { data: expiredParcelImages, error: parcelImageLoadError } = await db
+    .from("parcel_ai_images")
+    .select("id,r2_original_key,r2_normalized_key")
+    .lte("expires_at", new Date().toISOString())
+    .order("expires_at", { ascending: true })
+    .limit(1_000);
+  if (parcelImageLoadError) {
+    return NextResponse.json({ error: "parcel_image_cleanup_query_failed" }, { status: 500 });
+  }
+  const parcelImageKeys = (expiredParcelImages ?? []).flatMap((image) => [image.r2_original_key, image.r2_normalized_key].filter((key): key is string => Boolean(key)));
+  if (parcelImageKeys.length) await deleteR2Objects(parcelImageKeys);
+  if (expiredParcelImages?.length) {
+    const { error: parcelImageDeleteError } = await db.from("parcel_ai_images").delete().in("id", expiredParcelImages.map((image) => image.id));
+    if (parcelImageDeleteError) return NextResponse.json({ error: "parcel_image_cleanup_database_failed" }, { status: 500 });
+  }
+
   const staffAccess = await processExpiredAndPendingStaffAccess();
 
   return NextResponse.json({
     ok: true,
     deleted: deletedIds.length,
     failed: (expired?.length ?? 0) - deletedIds.length,
+    deletedParcelAiImages: expiredParcelImages?.length ?? 0,
     staffAccess,
   });
 }

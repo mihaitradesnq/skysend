@@ -11,11 +11,31 @@ export type ParcelIntelligenceConfidenceLevel = "low" | "medium" | "high";
 
 export type ParcelIntelligenceConfidenceScore = number;
 
+export type ParcelAiImageInput = {
+  id: string;
+  slot: number;
+  contentType: "image/jpeg" | "image/png" | "image/webp";
+  dataUrl: string;
+};
+
+export type ParcelProfileUncertainty = {
+  field: "identity" | "quantity" | "object_weight" | "object_dimensions" | "parcel_weight" | "parcel_dimensions" | "packaging";
+  message: string;
+  severity: "low" | "medium" | "high";
+};
+
+export type ParcelTextImageContradiction = {
+  field: string;
+  textEvidence: string;
+  imageEvidence: string;
+  impact: "low" | "medium" | "high";
+};
+
 export type ProductLookupResult = {
   title: string;
   url: string;
   snippet: string;
-  sourceType: "web";
+  sourceType: "web" | "catalog";
   confidence: number;
 };
 
@@ -60,6 +80,11 @@ export type ParcelDetectedItem = {
   sourceUrls?: string[];
   lookupEvidence?: ProductLookupResult[];
   evidenceConfidence?: ParcelIntelligenceConfidenceLevel | null;
+  productIdentifier?: string | null;
+  brand?: string | null;
+  model?: string | null;
+  packagingState?: "packaged" | "unpackaged" | "unknown";
+  profileSource?: "catalog" | "vision" | "text" | "local";
 };
 
 export type ParcelPackagingInference = {
@@ -177,6 +202,14 @@ export type ParcelIntelligenceEstimate = {
   recommendedDroneClass?: DroneClass | null;
   explanation?: string | null;
   lookupTrace?: ParcelLookupTrace | null;
+  objectProfiles?: ParcelDetectedItem[];
+  finalParcelProfile?: {
+    weightRange: ParcelEstimatedWeightRange;
+    dimensions: ParcelEstimatedDimensions;
+    packagingMaterialNotes: string[];
+  };
+  contradictions?: ParcelTextImageContradiction[];
+  uncertainties?: ParcelProfileUncertainty[];
 };
 
 export type ParcelEditableConfirmation = {

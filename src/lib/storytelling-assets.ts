@@ -42,6 +42,7 @@ type AlphaVideoAsset = ResponsiveVideoAsset & {
 };
 
 const LANDING_RUNTIME_ROOT = `${RUNTIME_ROOT}/landing`;
+const HOW_IT_WORKS_RUNTIME_ROOT = `${RUNTIME_ROOT}/how-it-works`;
 
 export const storytellingAssets = {
   hero: {
@@ -115,6 +116,14 @@ export const storytellingAssets = {
       { id: "sameday", name: "Sameday", src: `${LANDING_RUNTIME_ROOT}/partner-sameday.webp` },
       { id: "glovo", name: "Glovo", src: `${LANDING_RUNTIME_ROOT}/partner-glovo.webp` },
     ],
+  },
+  howItWorks: {
+    tutorial: {
+      desktop: `${HOW_IT_WORKS_RUNTIME_ROOT}/mobile-tutorial.mp4`,
+      mobile: `${HOW_IT_WORKS_RUNTIME_ROOT}/mobile-tutorial.mp4`,
+      posterDesktop: `${HOW_IT_WORKS_RUNTIME_ROOT}/mobile-tutorial-poster.png`,
+      posterMobile: `${HOW_IT_WORKS_RUNTIME_ROOT}/mobile-tutorial-poster.png`,
+    },
   },
   weather: {
     rain: {

@@ -3,6 +3,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { estimateParcelForDispatch } from "@/lib/ai";
 import { validateRequest } from "@/lib/api/validation";
+import { prepareParcelAiImagesForAnalysis } from "@/lib/parcel-ai-images/server";
 import type {
   ParcelEstimatorErrorResponse,
   ParcelEstimatorRequest,
@@ -13,7 +14,7 @@ import type {
   ParcelNaturalDescription,
 } from "@/types/parcel-intelligence";
 
-const estimatorTimeoutMs = 11000;
+const estimatorTimeoutMs = 30_000;
 
 const packagingEnum = z.enum([
   "soft_pouch",
@@ -109,6 +110,7 @@ export const parcelEstimateRequestSchema = z
     packaging: packagingEnum.optional(),
     approximateSize: sizeEnum.optional(),
     currentFragileLevel: fragileLevelEnum.nullable().optional(),
+    parcelAiImageIds: z.array(z.string().uuid()).max(2).optional(),
   })
   .refine(
     (data) => {
@@ -160,9 +162,9 @@ function toNaturalDescription(
   };
 }
 
-function buildEstimatorRequest(
+async function buildEstimatorRequest(
   input: ParcelEstimateRequestInput,
-): ParcelEstimatorRequest {
+): Promise<ParcelEstimatorRequest> {
   const contentDescription = (
     input.contentDescription ??
     input.contents ??
@@ -175,6 +177,17 @@ function buildEstimatorRequest(
   const advancedDetails = input.advancedDetails ?? null;
   const packaging =
     input.packaging ?? advancedDetails?.packagingType ?? "boxed";
+  let images: ParcelEstimatorRequest["images"] = [];
+  if (input.parcelAiImageIds?.length) {
+    const [{ auth }, { getSupportIdentity }] = await Promise.all([
+      import("@clerk/nextjs/server"),
+      import("@/lib/support/support-hub"),
+    ]);
+    const { userId } = await auth();
+    const identity = userId ? await getSupportIdentity(userId) : null;
+    if (!identity) throw new Error("unauthenticated");
+    images = await prepareParcelAiImagesForAnalysis(identity, input.parcelAiImageIds);
+  }
 
   return {
     contentDescription,
@@ -200,6 +213,7 @@ function buildEstimatorRequest(
     packaging,
     approximateSize: input.approximateSize ?? "small",
     currentFragileLevel: input.currentFragileLevel ?? null,
+    images,
   };
 }
 
@@ -224,7 +238,16 @@ export async function postParcelEstimate(request: Request) {
     return validation.response;
   }
 
-  const input = buildEstimatorRequest(validation.data);
+  let input: ParcelEstimatorRequest;
+  try {
+    input = await buildEstimatorRequest(validation.data);
+  } catch (error) {
+    const reason = error instanceof Error ? error.message : "image_unavailable";
+    return NextResponse.json<ParcelEstimatorErrorResponse>(
+      { error: reason === "unauthenticated" ? "Autentificare necesară pentru imagini." : "Imaginile selectate nu mai sunt disponibile." },
+      { status: reason === "unauthenticated" ? 401 : 409 },
+    );
+  }
 
   try {
     const estimate = await withTimeout(

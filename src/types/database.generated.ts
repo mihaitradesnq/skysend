@@ -592,6 +592,75 @@ export type Database = {
           },
         ]
       }
+      parcel_ai_images: {
+        Row: {
+          content_type: string
+          created_at: string
+          delivery_draft_id: string
+          expires_at: string
+          id: string
+          normalized_content_type: string | null
+          normalized_size_bytes: number | null
+          original_name: string
+          r2_normalized_key: string | null
+          r2_original_key: string
+          size_bytes: number
+          slot: number
+          status: string
+          updated_at: string
+          uploaded_by_profile_id: string | null
+        }
+        Insert: {
+          content_type: string
+          created_at?: string
+          delivery_draft_id: string
+          expires_at?: string
+          id?: string
+          normalized_content_type?: string | null
+          normalized_size_bytes?: number | null
+          original_name: string
+          r2_normalized_key?: string | null
+          r2_original_key: string
+          size_bytes: number
+          slot: number
+          status?: string
+          updated_at?: string
+          uploaded_by_profile_id?: string | null
+        }
+        Update: {
+          content_type?: string
+          created_at?: string
+          delivery_draft_id?: string
+          expires_at?: string
+          id?: string
+          normalized_content_type?: string | null
+          normalized_size_bytes?: number | null
+          original_name?: string
+          r2_normalized_key?: string | null
+          r2_original_key?: string
+          size_bytes?: number
+          slot?: number
+          status?: string
+          updated_at?: string
+          uploaded_by_profile_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "parcel_ai_images_delivery_draft_id_fkey"
+            columns: ["delivery_draft_id"]
+            isOneToOne: false
+            referencedRelation: "delivery_drafts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "parcel_ai_images_uploaded_by_profile_id_fkey"
+            columns: ["uploaded_by_profile_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       mission_events: {
         Row: {
           created_at: string

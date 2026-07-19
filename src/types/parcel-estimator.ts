@@ -15,6 +15,7 @@ import type {
   ParcelEstimatedDimensions,
   ParcelEstimatedWeightRange,
   ParcelHandlingNote,
+  ParcelAiImageInput,
   ParcelIntelligenceSnapshot,
   ParcelLookupTrace,
   ParcelNaturalDescription,
@@ -32,6 +33,7 @@ export type ParcelEstimatorRequest = {
   packaging: ParcelPackagingType;
   approximateSize: ParcelSizeOption;
   currentFragileLevel?: ParcelFragileLevel | null;
+  images?: ParcelAiImageInput[];
 };
 
 export type ParcelEstimatorSource = "openrouter" | "local";
@@ -75,6 +77,11 @@ export type ParcelEstimatorResponse = {
   intelligence?: ParcelIntelligenceSnapshot | null;
   confirmedProfile?: ConfirmedParcelProfile | null;
   lookupTrace?: ParcelLookupTrace;
+  imageAnalysis?: {
+    analyzedImageIds: string[];
+    skipped: boolean;
+    reason?: string | null;
+  };
   safetyNote: "Greutatea finală va fi confirmată la pickup";
 };
 

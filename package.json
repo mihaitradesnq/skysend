@@ -17,6 +17,7 @@
     "storytelling:r2:upload": "node --env-file=.env.local scripts/storytelling-r2.mjs upload",
     "storytelling:r2:verify": "node --env-file=.env.local scripts/storytelling-r2.mjs verify",
     "storytelling:r2:prune": "node --env-file=.env.local scripts/storytelling-r2.mjs prune --keep=3",
+    "parcel-ai:r2:lifecycle": "node --env-file=.env.local scripts/configure-parcel-ai-r2-lifecycle.mjs",
     "db:types": "supabase gen types typescript --project-id cgczqftjbofqerjzqkwo --schema public > src/types/database.generated.ts",
     "test": "vitest run",
     "test:watch": "vitest",
@@ -43,6 +44,7 @@
     "react": "19.2.4",
     "react-dom": "19.2.4",
     "resend": "6.17.2",
+    "sharp": "^0.34.5",
     "stripe": "^22.0.2",
     "tailwind-merge": "^3.5.0",
     "zod": "^4.4.3"

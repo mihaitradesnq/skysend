@@ -3,6 +3,7 @@ import "server-only";
 import {
   DeleteObjectsCommand,
   GetObjectCommand,
+  HeadObjectCommand,
   PutObjectCommand,
   S3Client,
 } from "@aws-sdk/client-s3";
@@ -27,6 +28,8 @@ const emailAttachmentTypes = new Set([
 export const supportImageMaxBytes = 25 * 1024 * 1024;
 export const emailAttachmentMaxBytes = 25 * 1024 * 1024;
 export const attachmentRetentionDays = 90;
+export const parcelAiImageMaxBytes = 10 * 1024 * 1024;
+export const parcelAiImageRetentionHours = 24;
 
 let r2Client: S3Client | null = null;
 
@@ -82,6 +85,10 @@ export function isSupportImage(contentType: string, sizeBytes: number) {
   return imageTypes.has(contentType) && sizeBytes > 0 && sizeBytes <= supportImageMaxBytes;
 }
 
+export function isParcelAiImage(contentType: string, sizeBytes: number) {
+  return imageTypes.has(contentType) && sizeBytes > 0 && sizeBytes <= parcelAiImageMaxBytes;
+}
+
 export function isAcceptedEmailAttachment(contentType: string, sizeBytes: number) {
   return (
     emailAttachmentTypes.has(contentType) &&
@@ -94,10 +101,20 @@ export function createR2ObjectKey(scope: "support" | "evaluation" | "email", own
   return `${scope}/${ownerId}/${crypto.randomUUID()}-${safeFileName(fileName)}`;
 }
 
+export function createParcelAiR2ObjectKey(
+  draftId: string,
+  ownerId: string,
+  fileName: string,
+  variant: "original" | "normalized" = "original",
+) {
+  return `parcel-ai/${ownerId}/${draftId}/${variant}/${crypto.randomUUID()}-${safeFileName(fileName)}`;
+}
+
 export async function createR2UploadUrl(input: {
   objectKey: string;
   contentType: string;
   sizeBytes: number;
+  retentionHours?: number;
 }) {
   const config = getR2Config();
   return getSignedUrl(
@@ -107,10 +124,34 @@ export async function createR2UploadUrl(input: {
       Key: input.objectKey,
       ContentType: input.contentType,
       ContentLength: input.sizeBytes,
-      Metadata: { expires: String(Date.now() + attachmentRetentionDays * 86400000) },
+      Metadata: { expires: String(Date.now() + (input.retentionHours ?? attachmentRetentionDays * 24) * 3600000) },
     }),
     { expiresIn: 600 },
   );
+}
+
+export async function getR2Object(input: { objectKey: string; maxBytes?: number }) {
+  const config = getR2Config();
+  const response = await getR2Client().send(
+    new GetObjectCommand({ Bucket: config.bucket, Key: input.objectKey }),
+  );
+  const contentLength = Number(response.ContentLength ?? 0);
+  if (input.maxBytes && contentLength > input.maxBytes) {
+    throw new Error("object_too_large");
+  }
+  if (!response.Body) throw new Error("object_missing_body");
+  const bytes = await response.Body.transformToByteArray();
+  return { bytes, contentType: response.ContentType ?? "application/octet-stream" };
+}
+
+export async function r2ObjectExists(objectKey: string) {
+  const config = getR2Config();
+  try {
+    await getR2Client().send(new HeadObjectCommand({ Bucket: config.bucket, Key: objectKey }));
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 export async function createR2DownloadUrl(objectKey: string) {
@@ -126,6 +167,7 @@ export async function uploadR2Object(input: {
   objectKey: string;
   body: Uint8Array;
   contentType: string;
+  retentionHours?: number;
 }) {
   const config = getR2Config();
   await getR2Client().send(
@@ -135,7 +177,7 @@ export async function uploadR2Object(input: {
       Body: input.body,
       ContentType: input.contentType,
       ContentLength: input.body.byteLength,
-      Metadata: { expires: String(Date.now() + attachmentRetentionDays * 86400000) },
+      Metadata: { expires: String(Date.now() + (input.retentionHours ?? attachmentRetentionDays * 24) * 3600000) },
     }),
   );
 }

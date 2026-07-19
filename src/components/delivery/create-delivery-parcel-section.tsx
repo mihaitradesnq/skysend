@@ -1,10 +1,11 @@
 "use client";
 
-import { memo, useEffect, useState } from "react";
+import { memo, useEffect, useRef, useState } from "react";
 import {
   CheckCircle2,
   ChevronDown,
   ImagePlus,
+  Camera,
   LoaderCircle,
   MessageSquareText,
   Send,
@@ -77,6 +78,15 @@ type AdvancedDetailsDraft = {
 };
 
 type ClarificationAnswerDraft = Record<string, string>;
+
+type ParcelAiImageDraft = {
+  id: string;
+  slot: number;
+  name: string;
+  previewUrl: string;
+  status: string;
+  expiresAt?: string;
+};
 
 type ConfirmationDraft = {
   weightMinKg: string;
@@ -431,27 +441,26 @@ function getClarificationQuestions(
 }
 
 function getQuestionOptions(question: ParcelClarificationQuestion) {
-  if (question.options?.length) {
-    return question.options;
-  }
-
-  if (question.field === "packaging") {
-    return [
+  const options = question.options?.length ? question.options :
+    question.field === "packaging" ? [
       { value: "boxed", label: "Cutie" },
       { value: "soft_pouch", label: "Plic" },
       { value: "plastic_bag", label: "Pungă de plastic" },
       { value: "original", label: "Ambalaj original" },
-    ];
-  }
-
-  if (question.field === "fragility") {
-    return [
+    ] : question.field === "fragility" ? [
       { value: "yes", label: "Da" },
       { value: "no", label: "Nu" },
-    ];
-  }
+    ] : question.answerType === "boolean" ? [
+      { value: "true", label: "Da" },
+      { value: "false", label: "Nu" },
+    ] : [];
 
-  return [];
+  if (!options.length || question.answerType === "boolean") {
+    return options;
+  }
+  return options.some((option) => option.value === "__custom")
+    ? options
+    : [...options, { value: "__custom", label: "Alt răspuns" }];
 }
 
 function normalizeClarificationAnswer(
@@ -483,6 +492,14 @@ function normalizeClarificationAnswer(
       questionId: question.id,
       field: question.field,
       answer: answer === "true" || answer === "yes",
+    };
+  }
+
+  if (question.answerType === "multi_select") {
+    return {
+      questionId: question.id,
+      field: question.field,
+      answer: answer.split("|").filter(Boolean),
     };
   }
 
@@ -626,6 +643,12 @@ export const CreateDeliveryParcelSection = memo(function CreateDeliveryParcelSec
     useState<OperatorParcelEvaluation | null>(null);
   const [operatorAnswerDraft, setOperatorAnswerDraft] = useState("");
   const [operatorAnswerFiles, setOperatorAnswerFiles] = useState<File[]>([]);
+  const [parcelAiImages, setParcelAiImages] = useState<ParcelAiImageDraft[]>([]);
+  const [parcelAiImageError, setParcelAiImageError] = useState<string | null>(null);
+  const [isUploadingParcelImage, setIsUploadingParcelImage] = useState(false);
+  const [canUseCamera, setCanUseCamera] = useState(false);
+  const parcelImagePickerRef = useRef<HTMLInputElement>(null);
+  const parcelCameraPickerRef = useRef<HTMLInputElement>(null);
   const [evaluationViewId] = useState(() => crypto.randomUUID());
   const [operatorRequestError, setOperatorRequestError] = useState<string | null>(
     null,
@@ -661,12 +684,14 @@ export const CreateDeliveryParcelSection = memo(function CreateDeliveryParcelSec
     (question) => question.blocksConfirmation === true,
   );
   const normalizedClarificationAnswers = clarificationQuestions
-    .map((question) =>
-      normalizeClarificationAnswer(
-        question,
-        clarificationAnswers[question.id] ?? "",
-      ),
-    )
+    .map((question) => {
+      const raw = clarificationAnswers[question.id] ?? "";
+      const custom = clarificationAnswers[`${question.id}__custom`] ?? "";
+      const answer = question.answerType === "multi_select"
+        ? raw.split("|").flatMap((item) => item === "__custom" ? (custom ? [custom] : []) : [item]).join("|")
+        : raw === "__custom" ? custom : raw;
+      return normalizeClarificationAnswer(question, answer);
+    })
     .filter((answer): answer is ParcelClarificationAnswer => Boolean(answer));
   const canRefineWithAnswers =
     hasClarificationQuestions &&
@@ -723,6 +748,23 @@ export const CreateDeliveryParcelSection = memo(function CreateDeliveryParcelSec
   }, [evaluationViewId, sessionId]);
 
   useEffect(() => {
+    setCanUseCamera(Boolean(navigator.mediaDevices?.getUserMedia));
+  }, []);
+
+  useEffect(() => {
+    if (!sessionId) return;
+    let active = true;
+    void fetch(`/api/parcel-ai/images?draftId=${encodeURIComponent(sessionId)}`, { cache: "no-store" })
+      .then(async (response) => response.ok ? response.json() : { images: [] })
+      .then((payload) => {
+        if (!active) return;
+        setParcelAiImages((payload.images ?? []).map((image: ParcelAiImageDraft) => ({ ...image, previewUrl: image.previewUrl })));
+      })
+      .catch(() => undefined);
+    return () => { active = false; };
+  }, [sessionId]);
+
+  useEffect(() => {
     if (
       !operatorEvaluation ||
       operatorEvaluation.status !== "finalized" ||
@@ -773,6 +815,48 @@ export const CreateDeliveryParcelSection = memo(function CreateDeliveryParcelSec
     setClarificationAnswers({});
     setSubmittedClarificationAnswers([]);
     setEstimateError(null);
+  }
+
+  async function uploadParcelAiImage(file: File, slot: number) {
+    const acceptedTypes = ["image/jpeg", "image/png", "image/webp", "image/heic", "image/heif"];
+    if (!acceptedTypes.includes(file.type) || file.size > 10 * 1024 * 1024) {
+      setParcelAiImageError("Alege o imagine JPEG, PNG, WebP sau HEIC/HEIF de maximum 10 MB.");
+      return;
+    }
+    setIsUploadingParcelImage(true);
+    setParcelAiImageError(null);
+    const localPreviewUrl = URL.createObjectURL(file);
+    try {
+      const response = await fetch("/api/parcel-ai/images", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ draftId: sessionId, slot, fileName: file.name, contentType: file.type, sizeBytes: file.size }),
+      });
+      const upload = await response.json();
+      if (!response.ok) throw new Error(upload.error ?? "upload_unavailable");
+      const put = await fetch(upload.uploadUrl, { method: "PUT", headers: { "Content-Type": file.type }, body: file });
+      if (!put.ok) throw new Error("r2_upload_failed");
+      setParcelAiImages((current) => {
+        current.filter((image) => image.slot === slot && image.previewUrl.startsWith("blob:")).forEach((image) => URL.revokeObjectURL(image.previewUrl));
+        return [...current.filter((image) => image.slot !== slot), { id: upload.id, slot, name: file.name, previewUrl: localPreviewUrl, status: "uploaded", expiresAt: upload.expiresAt }].sort((a, b) => a.slot - b.slot);
+      });
+    } catch {
+      URL.revokeObjectURL(localPreviewUrl);
+      setParcelAiImageError("Imaginea nu a putut fi încărcată. Încearcă din nou.");
+    } finally {
+      setIsUploadingParcelImage(false);
+    }
+  }
+
+  async function removeParcelAiImage(image: ParcelAiImageDraft) {
+    setParcelAiImageError(null);
+    try {
+      const response = await fetch(`/api/parcel-ai/images?imageId=${encodeURIComponent(image.id)}`, { method: "DELETE" });
+      if (!response.ok) throw new Error("remove_failed");
+      if (image.previewUrl.startsWith("blob:")) URL.revokeObjectURL(image.previewUrl);
+      setParcelAiImages((current) => current.filter((item) => item.id !== image.id));
+    } catch {
+      setParcelAiImageError("Imaginea nu a putut fi eliminată.");
+    }
   }
 
   function buildRequestInput(
@@ -829,7 +913,7 @@ export const CreateDeliveryParcelSection = memo(function CreateDeliveryParcelSec
     setConfirmationDraft(null);
     setIsEditingConfirmation(false);
     const controller = new AbortController();
-    const timeout = window.setTimeout(() => controller.abort(), 15000);
+    const timeout = window.setTimeout(() => controller.abort(), 35_000);
 
     try {
       const response = await fetch("/api/ai/parcel-estimate", {
@@ -843,6 +927,7 @@ export const CreateDeliveryParcelSection = memo(function CreateDeliveryParcelSec
           naturalDescription: nextInput.naturalDescription,
           advancedDetails: nextInput.advancedDetails,
           previousClarificationAnswers: answersForRequest,
+          parcelAiImageIds: parcelAiImages.map((image) => image.id),
           category: nextInput.category ?? "retail",
           packaging: nextInput.packaging,
           approximateSize: nextInput.approximateSize,
@@ -1141,6 +1226,35 @@ export const CreateDeliveryParcelSection = memo(function CreateDeliveryParcelSec
               className="min-h-32 w-full resize-y rounded-[var(--ui-radius-card)] border border-input bg-background px-3.5 py-3 text-base leading-7 outline-none transition-[border-color,box-shadow] placeholder:text-muted-foreground/80 focus-visible:border-primary/15 focus-visible:ring-4 focus-visible:ring-ring sm:min-h-36 sm:px-4"
             />
           </label>
+
+          <div className="grid gap-3 rounded-[calc(var(--radius)+0.35rem)] border border-dashed border-primary/30 bg-primary/5 p-3.5 sm:p-4">
+            <div className="flex flex-wrap items-start justify-between gap-2">
+              <div>
+                <p className="text-sm font-medium text-foreground">Fotografii opționale pentru analiză</p>
+                <p className="mt-1 text-xs leading-5 text-muted-foreground">Prima poză: produsul. A doua poză: ambalajul, dacă există separat.</p>
+              </div>
+              <span className="text-xs text-muted-foreground">{parcelAiImages.length}/2 imagini</span>
+            </div>
+            <input ref={parcelImagePickerRef} type="file" accept="image/jpeg,image/png,image/webp,image/heic,image/heif" className="sr-only" onChange={(event) => { const slot = parcelAiImages.find((image) => image.slot === 0) ? 1 : 0; const file = event.target.files?.[0]; if (file) void uploadParcelAiImage(file, slot); event.currentTarget.value = ""; }} />
+            <input ref={parcelCameraPickerRef} type="file" accept="image/jpeg,image/png,image/webp,image/heic,image/heif" capture="environment" className="sr-only" onChange={(event) => { const slot = parcelAiImages.find((image) => image.slot === 0) ? 1 : 0; const file = event.target.files?.[0]; if (file) void uploadParcelAiImage(file, slot); event.currentTarget.value = ""; }} />
+            {parcelAiImages.length ? (
+              <div className="grid gap-2 sm:grid-cols-2">
+                {[0, 1].map((slot) => {
+                  const image = parcelAiImages.find((item) => item.slot === slot);
+                  return image ? <div key={image.id} className="relative overflow-hidden rounded-2xl border bg-background">
+                    <img src={image.previewUrl} alt={slot === 0 ? "Produs atașat" : "Ambalaj atașat"} className="h-36 w-full object-cover" />
+                    <div className="flex items-center justify-between gap-2 p-2"><span className="truncate text-xs text-muted-foreground">{slot === 0 ? "Produs" : "Ambalaj"}: {image.name}</span><button type="button" onClick={() => void removeParcelAiImage(image)} disabled={operatorEvaluationLocksParcel} aria-label={`Elimină ${image.name}`} className="rounded-lg p-1 text-muted-foreground hover:bg-muted hover:text-foreground"><X className="size-4" /></button></div>
+                  </div> : <div key={`empty-${slot}`} className="grid min-h-24 place-items-center rounded-2xl border border-dashed bg-background/50 px-3 text-center text-xs text-muted-foreground">{slot === 0 ? "Fotografie produs" : "Fotografie ambalaj (opțională)"}</div>;
+                })}
+              </div>
+            ) : null}
+            <div className="flex flex-wrap gap-2">
+              <button type="button" onClick={() => parcelImagePickerRef.current?.click()} disabled={operatorEvaluationLocksParcel || isUploadingParcelImage} className="inline-flex h-10 items-center gap-2 rounded-xl border bg-background px-3 text-xs font-medium hover:bg-muted disabled:opacity-50"><ImagePlus className="size-4" />{isUploadingParcelImage ? "Se încarcă…" : parcelAiImages.length >= 2 ? "Înlocuiește ambalajul" : "Încarcă imagine"}</button>
+              {canUseCamera ? <button type="button" onClick={() => parcelCameraPickerRef.current?.click()} disabled={operatorEvaluationLocksParcel || isUploadingParcelImage} className="inline-flex h-10 items-center gap-2 rounded-xl border bg-background px-3 text-xs font-medium hover:bg-muted disabled:opacity-50"><Camera className="size-4" />Folosește camera</button> : null}
+            </div>
+            <p className="text-xs text-muted-foreground">Imaginile sunt private, folosite doar pentru estimare și expiră automat în 24 de ore.</p>
+            {parcelAiImageError ? <p className="text-xs text-destructive">{parcelAiImageError}</p> : null}
+          </div>
 
           <button
             type="button"
@@ -1809,7 +1923,19 @@ export const CreateDeliveryParcelSection = memo(function CreateDeliveryParcelSec
                         <span className="text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">
                           Răspuns
                         </span>
-                        {options.length ? (
+                        {question.answerType === "boolean" ? (
+                          <div className="flex gap-2">
+                            {options.map((option) => <button key={option.value} type="button" onClick={() => updateClarificationAnswer(question.id, option.value)} className={cn("h-11 rounded-xl border px-4 text-sm", value === option.value ? "border-primary bg-primary/10 text-primary" : "bg-card")}>{option.label}</button>)}
+                          </div>
+                        ) : question.answerType === "multi_select" ? (
+                          <div className="grid gap-2">
+                            {options.map((option) => {
+                              const selected = value.split("|").filter(Boolean);
+                              const checked = selected.includes(option.value);
+                              return <label key={option.value} className="flex items-center gap-2 rounded-xl border bg-card px-3 py-2 text-sm"><input type="checkbox" checked={checked} onChange={() => updateClarificationAnswer(question.id, checked ? selected.filter((item) => item !== option.value).join("|") : [...selected, option.value].join("|"))} />{option.label}</label>;
+                            })}
+                          </div>
+                        ) : options.length ? (
                           <select
                             value={value}
                             onChange={(event) =>
@@ -1847,6 +1973,7 @@ export const CreateDeliveryParcelSection = memo(function CreateDeliveryParcelSec
                             className="h-12 min-w-0 rounded-2xl border border-input bg-card px-4 text-sm outline-none transition-[border-color,box-shadow] placeholder:text-muted-foreground/70 focus-visible:border-primary/15 focus-visible:ring-4 focus-visible:ring-ring"
                           />
                         )}
+                        {value.includes("__custom") || value === "__custom" ? <input type="text" value={clarificationAnswers[`${question.id}__custom`] ?? ""} placeholder="Scrie răspunsul tău" onChange={(event) => updateClarificationAnswer(`${question.id}__custom`, event.target.value)} className="h-12 min-w-0 rounded-2xl border border-input bg-card px-4 text-sm outline-none" /> : null}
                       </label>
                     );
                   })}

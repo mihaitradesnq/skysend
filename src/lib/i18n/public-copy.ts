@@ -128,8 +128,17 @@ export type PublicCopy = {
   howItWorks: {
     story: {
       title: string;
+      titleLines: [string, string, string];
       subtitle: string;
       scrollHint: string;
+      backToTopAria: string;
+      tutorial: {
+        label: string;
+        scenes: {
+          title: string;
+          body: string[];
+        }[];
+      };
     };
     heroEyebrow: string;
     heroTitle: string;
@@ -467,9 +476,62 @@ const ro: PublicCopy = {
   },
   howItWorks: {
     story: {
-      title: "RUTA CEA MAI RAPIDĂ NU ESTE ÎNTOTDEAUNA DRUMUL",
+      title: "RUTA CEA MAI RAPIDĂ NU ESTE ÎNTOTDEAUNA ȘOSEAUA",
+      titleLines: ["RUTA CEA MAI", "RAPIDĂ NU ESTE", "ÎNTOTDEAUNA ȘOSEAUA"],
       subtitle: "Află cum câteva clickuri devin o livrare prin cer.",
       scrollHint: "Derulează pentru a continua",
+      backToTopAria: "Înapoi la începutul paginii",
+      tutorial: {
+        label: "Tutorial creare livrare",
+        scenes: [
+          {
+            title: "AUTENTIFICĂ-TE SAU CREEAZĂ UN CONT",
+            body: [
+              "Pentru a utiliza SkySend, trebuie să fii autentificat. Creează un cont sau conectează-te pentru a continua.",
+            ],
+          },
+          {
+            title: "ALEGE LOCAȚIILE",
+            body: [
+              "Selectează pe rând adresa de preluare și adresa de livrare, folosind marcajul de pe hartă.",
+              "După confirmarea fiecărei adrese, așteaptă în timp ce SkySend identifică patru puncte de întâlnire din apropiere, unde drona poate ajunge în siguranță. Alege punctul de întâlnire preferat selectând una dintre cele patru opțiuni.",
+              "După ce ambele adrese au fost confirmate, continuă la pasul următor.",
+            ],
+          },
+          {
+            title: "OFERĂ-I LUI PARCEL AI DETALII DESPRE COLETUL TĂU",
+            body: [
+              "Descrie coletul în detaliu, inclusiv ce trimiți, cum este ambalat și dacă există cerințe speciale de manipulare.",
+              "De asemenea, poți încărca până la două fotografii. Parcel AI va estima greutatea și dimensiunile coletului.",
+              "Folosește secțiunea „Detalii avansate” pentru a adăuga manual informațiile pe care le cunoști.",
+              "Dacă estimarea pare corectă, continuă. În caz contrar, solicită verificarea de către un operator.",
+            ],
+          },
+          {
+            title: "CONFIGUREAZĂ LIVRAREA",
+            body: [
+              "Alege opțiunea de livrare care ți se potrivește cel mai bine: Standard, Prioritară sau Programată.",
+              "SkySend îți va recomanda și drona cea mai potrivită pentru coletul tău, în funcție de caracteristicile estimate ale acestuia și de cerințele livrării.",
+              "După ce ai verificat că toate informațiile sunt corecte, continuă la pasul următor.",
+            ],
+          },
+          {
+            title: "VERIFICĂ ȘI PLĂTEȘTE",
+            body: [
+              "Verifică toate detaliile livrării înainte de a confirma comanda.",
+              "După ce te-ai asigurat că toate informațiile sunt corecte, efectuează plata în siguranță prin Stripe. SkySend nu stochează datele cardului tău.",
+              "Selectează „Confirmă și plătește” pentru a plasa comanda.",
+            ],
+          },
+          {
+            title: "LIVRAREA TA A ÎNCEPUT",
+            body: [
+              "Livrarea ta este acum în desfășurare.",
+              "Dacă ai selectat livrarea Standard sau Prioritară, o poți urmări din secțiunea „Livrare activă” din meniu. Deschide secțiunea „Livrare activă” pentru a accesa pagina de urmărire în timp real și pentru a urmări coletul în timp ce acesta își continuă traseul prin aer.",
+            ],
+          },
+        ],
+      },
     },
     heroEyebrow: "Cum funcționează",
     heroTitle: "Cum funcționează SkySend",
@@ -979,8 +1041,59 @@ const en: PublicCopy = {
   howItWorks: {
     story: {
       title: "THE FASTEST ROUTE ISN’T ALWAYS THE ROAD",
+      titleLines: ["THE FASTEST", "ROUTE ISN’T", "ALWAYS THE ROAD"],
       subtitle: "Learn how a few clicks become a delivery through the sky",
       scrollHint: "Scroll to continue",
+      backToTopAria: "Back to the top of the page",
+      tutorial: {
+        label: "Delivery creation tutorial",
+        scenes: [
+          {
+            title: "SIGN IN OR CREATE AN ACCOUNT",
+            body: ["To use SkySend, you need to be signed in. Create an account or log in to continue."],
+          },
+          {
+            title: "CHOOSE YOUR LOCATIONS",
+            body: [
+              "Select your pickup and delivery addresses one at a time using the pinpoint on the map.",
+              "After confirming each address, wait while SkySend finds four nearby meeting points where the drone can safely arrive. Choose your preferred meeting point by selecting one of the four options.",
+              "Once both addresses have been confirmed, continue to the next step.",
+            ],
+          },
+          {
+            title: "TELL PARCEL AI ABOUT YOUR PACKAGE",
+            body: [
+              "Describe your package in detail, including what you are sending, how it is packaged, and any special handling requirements.",
+              "You can also upload up to two photos. Parcel AI will estimate the package’s weight and dimensions.",
+              "Use Advanced Details to add known information manually.",
+              "If the estimate looks accurate, continue. Otherwise, request an operator review.",
+            ],
+          },
+          {
+            title: "CONFIGURE YOUR DELIVERY",
+            body: [
+              "Choose the delivery option that works best for you: Standard, Priority, or Scheduled delivery.",
+              "SkySend will also recommend the most suitable drone for your package based on its estimated characteristics and delivery requirements.",
+              "Once everything looks right, continue to the next step.",
+            ],
+          },
+          {
+            title: "REVIEW AND PAY",
+            body: [
+              "Review every detail of your delivery before confirming your order.",
+              "When everything is correct, complete your payment securely through Stripe. SkySend does not store your card details.",
+              "Select “Confirm & Pay” to place your order.",
+            ],
+          },
+          {
+            title: "YOUR DELIVERY HAS BEGUN",
+            body: [
+              "Your delivery is now in progress.",
+              "If you selected Standard or Priority delivery, you can follow it from the Active Delivery section in the menu. Open Active Delivery to access your live tracking page and follow your package as it makes its way through the sky.",
+            ],
+          },
+        ],
+      },
     },
     heroEyebrow: "How it works",
     heroTitle: "How SkySend works",

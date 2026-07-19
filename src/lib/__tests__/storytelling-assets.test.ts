@@ -38,4 +38,11 @@ describe("storytelling R2 release", () => {
     expect(storytellingAssets.editorial.sequence.desktop.frameCount).toBe(139);
     expect(storytellingAssets.editorial.sequence.mobile.frameCount).toBe(139);
   });
+
+  it("uses the same full-quality tutorial video for desktop and mobile scrub", () => {
+    const tutorial = storytellingAssets.howItWorks.tutorial;
+    expect(tutorial.desktop).toBe(tutorial.mobile);
+    expect(tutorial.desktop).toContain("/runtime/how-it-works/mobile-tutorial.mp4");
+    expect(tutorial.posterDesktop).toBe(tutorial.posterMobile);
+  });
 });

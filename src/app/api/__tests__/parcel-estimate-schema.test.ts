@@ -31,6 +31,29 @@ describe("parcel-estimate POST schema", () => {
     expect(result.success).toBe(true);
   });
 
+  it("accepts at most two Parcel AI image identifiers", () => {
+    const result = parcelEstimateRequestSchema.safeParse({
+      contents: "un produs fotografiat",
+      parcelAiImageIds: [
+        "27be7fcd-7f3a-43b6-b439-76d830aa6b7e",
+        "c1f1a45c-bb80-47f8-9f1b-e2bdb1de684d",
+      ],
+    });
+    expect(result.success).toBe(true);
+  });
+
+  it("rejects more than two Parcel AI images", () => {
+    const result = parcelEstimateRequestSchema.safeParse({
+      contents: "un produs fotografiat",
+      parcelAiImageIds: [
+        "27be7fcd-7f3a-43b6-b439-76d830aa6b7e",
+        "c1f1a45c-bb80-47f8-9f1b-e2bdb1de684d",
+        "e4ac6e41-59fe-40d6-bc37-c466fc1c8bc1",
+      ],
+    });
+    expect(result.success).toBe(false);
+  });
+
   it("rejects a request with no description at all", () => {
     const result = parcelEstimateRequestSchema.safeParse({
       packaging: "boxed",

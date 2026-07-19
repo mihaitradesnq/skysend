@@ -9,6 +9,7 @@ import {
 } from "@/lib/parcel-assistant";
 import { estimateParcelWithOpenRouter } from "@/lib/ai/openrouter-parcel-estimator";
 import { runProductLookupForEstimate } from "@/lib/ai/tavily-product-lookup";
+import { lookupExactCatalogProducts } from "@/lib/ai/product-catalog";
 import { getRecommendedDrone } from "@/lib/drone-recommendation";
 import type { DroneClass } from "@/types/domain";
 import type { ParcelDimensions } from "@/types/drone";
@@ -386,6 +387,11 @@ function parseDetectedItemsDetailed(value: unknown): ParcelDetectedItem[] {
         estimatedDimensionsCm: parseDimensions(record.estimatedDimensionsCm),
         confidenceScore: normalizeNumber(record.confidenceScore, 0, 100),
         evidence: typeof record.evidence === "string" ? record.evidence.trim() : null,
+        productIdentifier: typeof record.productIdentifier === "string" ? record.productIdentifier.trim() || null : null,
+        brand: typeof record.brand === "string" ? record.brand.trim() || null : null,
+        model: typeof record.model === "string" ? record.model.trim() || null : null,
+        packagingState: record.packagingState === "packaged" || record.packagingState === "unpackaged" ? record.packagingState : "unknown",
+        profileSource: "text",
       } satisfies ParcelDetectedItem;
     })
     .filter((item): item is NonNullable<typeof item> => Boolean(item))
@@ -1122,6 +1128,18 @@ function buildIntelligenceEstimate({
     clarificationQuestions,
     previousClarificationAnswers: input.previousClarificationAnswers ?? [],
     recommendedDroneClass,
+    objectProfiles: detectedItems,
+    finalParcelProfile: {
+      weightRange,
+      dimensions: estimatedDimensions,
+      packagingMaterialNotes: materials,
+    },
+    contradictions: [],
+    uncertainties: confidenceScore < 60 ? [{
+      field: "parcel_weight",
+      message: "Greutatea finală rămâne o estimare până la confirmarea la ridicare.",
+      severity: confidenceScore < 45 ? "high" : "medium",
+    }] : [],
     explanation: materials.length
       ? `${explanation} Materials: ${materials.join(", ")}.`
       : explanation,
@@ -1674,12 +1692,15 @@ export async function estimateParcelForDispatch(
   );
 
   if (provider !== "openrouter") {
-    return attachLookupToResponse(
+    return {
+      ...attachLookupToResponse(
       buildLocalEstimate(input),
       lookup.trace,
       lookup.results,
       false,
-    );
+      ),
+      imageAnalysis: { analyzedImageIds: [], skipped: Boolean(input.images?.length), reason: input.images?.length ? "provider_not_openrouter" : null },
+    };
   }
 
   let rawEstimate: unknown;
@@ -1687,32 +1708,57 @@ export async function estimateParcelForDispatch(
   try {
     rawEstimate = await withProviderTimeout(
       estimateParcelWithOpenRouter(input, lookup.results),
-      8500,
+      12_000,
     );
   } catch {
-    return attachLookupToResponse(
+    return {
+      ...attachLookupToResponse(
       buildLocalEstimate(input),
       lookup.trace,
       lookup.results,
       false,
-    );
+      ),
+      imageAnalysis: { analyzedImageIds: [], skipped: Boolean(input.images?.length), reason: input.images?.length ? "vision_unavailable" : null },
+    };
   }
 
   const parsedEstimate = parseRawParcelEstimate(rawEstimate);
 
   if (!parsedEstimate) {
-    return attachLookupToResponse(
+    return {
+      ...attachLookupToResponse(
       buildLocalEstimate(input),
       lookup.trace,
       lookup.results,
       false,
-    );
+      ),
+      imageAnalysis: { analyzedImageIds: [], skipped: Boolean(input.images?.length), reason: input.images?.length ? "vision_invalid_response" : null },
+    };
   }
 
-  return attachLookupToResponse(
-    combineWithLocalSafety(input, parsedEstimate),
+  const catalogEvidence = await lookupExactCatalogProducts(parsedEstimate.detectedItemsDetailed ?? []);
+  let finalEstimate = parsedEstimate;
+  if (catalogEvidence.length) {
+    try {
+      const refined = await withProviderTimeout(
+        estimateParcelWithOpenRouter(input, [...lookup.results, ...catalogEvidence]),
+        12_000,
+      );
+      finalEstimate = parseRawParcelEstimate(refined) ?? parsedEstimate;
+    } catch {
+      // Catalog enrichment is optional; preserve the first multimodal result.
+    }
+  }
+  const allEvidence = [...lookup.results, ...catalogEvidence];
+  const response = attachLookupToResponse(
+    combineWithLocalSafety(input, finalEstimate),
     lookup.trace,
-    lookup.results,
-    lookup.results.length > 0,
+    allEvidence,
+    allEvidence.length > 0,
   );
+  return {
+    ...response,
+    detectedItemsDetailed: response.detectedItemsDetailed?.map((item) => input.images?.length ? { ...item, profileSource: "vision" as const } : item),
+    imageAnalysis: { analyzedImageIds: input.images?.map((image) => image.id) ?? [], skipped: false, reason: null },
+  };
 }
